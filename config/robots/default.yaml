@@ -1,0 +1,16 @@
+# ロボット物理パラメータの公称値（具体的な機体寸法は未定のため仮の値）
+# システム同定の結果は config/robots/robot_XX.yaml に保存され、この値を上書きする。
+wheel_radius: 0.021     # [m] 車輪半径
+tread: 0.090            # [m] 左右車輪間距離（実効値）
+body_radius: 0.060      # [m] 外形を円で近似したときの半径
+motor_gain_l: 25.0      # [rad/s per duty] 不感帯を超えた duty あたりの定常角速度（公称電圧時）
+motor_gain_r: 25.0
+motor_tau_l: 0.060      # [s] モータ一次遅れ時定数
+motor_tau_r: 0.060
+deadzone_l: 0.10        # [duty] 不感帯
+deadzone_r: 0.10
+gyro_bias_z: 0.0        # [rad/s]
+batt_nominal_v: 4.8     # [V] 単3/単4 NiMH ×4
+us_offset: 0.06         # [m] 機体中心から超音波センサまで
+us_fov_deg: 30.0        # [deg] 超音波の指向角（全角）
+us_max_range: 2.0       # [m]
