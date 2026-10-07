@@ -51,3 +51,26 @@ def test_operator_window(qapp):
         w.close()
     finally:
         core.close()
+
+
+def test_vision_window(qapp):
+    import time
+
+    from coco_link.apps.vision.main_window import VisionWindow
+    from coco_link.common.config import FieldConfig
+    from coco_link.vision.pipeline import VisionPipeline
+    from coco_link.vision.sources import SyntheticSource
+    from coco_link.vision.worker import VisionWorker
+
+    worker = VisionWorker(SyntheticSource(), VisionPipeline(FieldConfig.load(), marker_height=0.0), None).start()
+    w = VisionWindow(worker)
+    w.show()
+    deadline = time.monotonic() + 5
+    while worker.latest()[1] is None and time.monotonic() < deadline:
+        time.sleep(0.05)
+    w._refresh()
+    w.show_mask.setChecked(True)
+    w._refresh()
+    qapp.processEvents()
+    assert worker.latest()[1].calibrated
+    w.close()
