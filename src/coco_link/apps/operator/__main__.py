@@ -17,6 +17,7 @@ def parse_args(argv=None):
     ap = argparse.ArgumentParser(prog="coco-operator", description="COCO-LINK 操作GUI")
     ap.add_argument("--control-hz", type=float, help="制御周期 [Hz]")
     ap.add_argument("--mode", help="起動直後に開始するモード名")
+    ap.add_argument("--record", action="store_true", help="起動と同時に MCAP 記録を開始")
     ap.add_argument("--quit-after", type=float, help="指定秒数後に終了（テスト用）")
     ap.add_argument("--screenshot", type=Path, help="終了時にウィンドウを PNG 保存（テスト用）")
     return ap.parse_args(argv)
@@ -24,6 +25,7 @@ def parse_args(argv=None):
 
 def build_window(core: ControlCore):
     """メインウィンドウを組み立てる（同定・ログのタブもここで追加）."""
+    from ...datalog import McapLogger
     from ...sysid.runner import SysIdRunner
     from .main_window import OperatorWindow
     from .sysid_panel import SysIdPanel
@@ -31,6 +33,7 @@ def build_window(core: ControlCore):
     win = OperatorWindow(core)
     win.sysid_runner = SysIdRunner(core)
     win.add_tab(SysIdPanel(win.sysid_runner), "システム同定")
+    win.attach_logger(McapLogger(core))
     return win
 
 
@@ -47,8 +50,11 @@ def main(argv=None) -> int:
     win.show()
     if args.mode:
         core.start_mode(args.mode)
+    if args.record:
+        win.record_action.setChecked(True)
     shot = (lambda: win.grab().save(str(args.screenshot))) if args.screenshot else None
     code = run_for(app, args.quit_after, shot)
+    win.logger.stop()
     core.close()
     return code
 

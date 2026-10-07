@@ -105,3 +105,20 @@ def test_world_model_extrapolates_latency():
     finally:
         fleet.close()
         wm.close()
+
+
+def test_mcap_logging_during_run(system, tmp_path):
+    from coco_link.datalog import McapLogger, read_mcap
+    core, engine = system
+    log = McapLogger(core)
+    log.start(tmp_path / "run.mcap")
+    assert wait_until(lambda: core.fleet.connected_ids() == [1, 2])
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < 0.6:
+        core.set_manual(1, 0.1, 0.0)
+        time.sleep(0.05)
+    core.estop_all()
+    time.sleep(0.2)
+    path = log.stop()
+    topics = {t for t, _, _ in read_mcap(path)}
+    assert {"/robot/1/telemetry", "/robot/1/cmd/cmd_vel", "/vision/world_state", "/core/state", "/core/event"} <= topics
