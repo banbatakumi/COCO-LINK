@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -93,5 +93,13 @@ class FieldConfig:
     def load(cls, path: str | Path | None = None) -> FieldConfig:
         data = load_yaml(path or config_dir() / "field.yaml")
         cfg = dataclass_from_dict(cls, data)
-        cfg.colors = {k: dataclass_from_dict(ColorRange, v) for k, v in (data.get("colors") or {}).items()}
+        colors = dict(data.get("colors") or {})
+        if path is None:   # ビジョン GUI で調整・保存した閾値があれば優先
+            colors.update(load_yaml(config_dir() / "vision_colors.yaml"))
+        cfg.colors = {k: dataclass_from_dict(ColorRange, v) for k, v in colors.items()}
         return cfg
+
+    def save_colors(self, path: str | Path | None = None) -> Path:
+        path = Path(path or config_dir() / "vision_colors.yaml")
+        save_yaml(path, {k: asdict(v) for k, v in self.colors.items()})
+        return path
