@@ -156,19 +156,26 @@ stateDiagram-v2
 
 ### 5.3 車輪速度制御（左右独立）
 
+モータを一次遅れ $\tau\dot\omega + \omega = K u$ とみなし、**モデルの逆系によるフィードフォワード + PI フィードバック**（2自由度制御）で制御する。
+
 ```
-e     = ω* - ω
-I     = I + ki * e * Δt               (アンチワインドアップ: 出力飽和中は積分しない)
-u_ff  = kff * ω*
-u_dz  = sign(ω*) * u_deadzone         (|ω*| < 0.05 rad/s のときは 0)
+dω*   = (ω* - ω*_prev) / Δt                 (§5.2 の加速度制限後の目標の変化率)
+r_f   = r_f + α (ω* - r_f)                  (目標値にも §5.1 と同じローパス α を通す)
+e     = r_f - ω                             (遅れを揃えた偏差)
+I     = I + ki * e * Δt                     (アンチワインドアップ: 出力飽和中は積分しない)
+u_ff  = kff * (ω* + tau_ff * dω*)           (逆系: u = (ω + τ dω/dt) / K)
+u_dz  = sign(ω*) * u_deadzone               (|ω*| < 0.05 rad/s のときは 0)
 u     = u_ff + u_dz + kp * e + I
-u     = u * batt_nominal_v / batt_v   (電池電圧補償)
+u     = u * batt_nominal_v / batt_v         (電池電圧補償)
 u     = clamp(u, -1, 1)
 ```
 
-- `|ω*| < 0.05` かつ `|ω| < 0.2` のときは `u = 0`、`I = 0`（停止時のうなり防止）。
+- `|ω*| < 0.05` かつ `|ω| < 0.2` のときは `u = 0`、`I = 0`, `r_f = 0`（停止時のうなり防止）。
+- **目標値フィルタ `r_f` の理由**: 速度推定 ω はローパスにより約 23 ms 遅れる。生の ω* と比べると加速中に偽の偏差が生じ、
+  PI が押し過ぎてオーバーシュートする（シミュレータで約 15 % → 3 % に改善することを確認済み）。
 - **`cmd_wheel` 受信中は PI を通さず** `u = left/right` をそのまま出す（電圧補償もしない）。同定はこの開ループ応答を使う。
-- ゲインの決め方は [system_identification.md](system_identification.md) を参照（同定した K, τ から IMC 法で kp, ki を算出し `set_param` で書き込む）。
+- ゲインの決め方は [system_identification.md](system_identification.md) を参照（同定した K, τ から IMC 法で kp, ki を、
+  `kff = 1/K`, `tau_ff = τ` を算出し `set_param` で書き込む）。
 
 ### 5.4 モータ出力
 
@@ -217,6 +224,8 @@ u     = clamp(u, -1, 1)
 - `hello` は 1 Hz で `operator_host`（既定 255.255.255.255）:50000 へ。
 - `telemetry` は operator 確定後 `telemetry_hz` で送信。1 メッセージ ≈ 400 byte。
 - `seq` は送信ごとに +1。`t_ms` は `millis()`。
+- **`telemetry` の `t_ms` は、含まれるエンコーダ値・IMU 値を取得した制御周期の時刻とする**（送信時刻ではない）。
+  システム同定はこの時刻で微分・積分を行うため、Wi-Fi の遅延揺らぎの影響を受けなくなる。
 - 解析に失敗したパケットは黙って捨てる（`log` で通知してもよい）。
 
 ## 8. パラメータ（NVS）

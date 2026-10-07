@@ -53,7 +53,7 @@ Robot                                     Operator
 | `type` | string | メッセージ種別（下表） |
 | `src` | string | 送信者。`"op"`, `"robot:<id>"`, `"vision"`, `"sim"` |
 | `seq` | uint32 | 送信者ごとの通し番号（欠落・順序逆転の検出用。2^32 で wrap） |
-| `t_ms` | uint32 | 送信者のモノトニック時刻 [ms]（ESP32 は `millis()`） |
+| `t_ms` | uint32 | 送信者のモノトニック時刻 [ms]（ESP32 は `millis()`）。`telemetry` ではセンサ値を取得した制御周期の時刻 |
 
 例:
 ```json
@@ -156,6 +156,7 @@ Robot                                     Operator
 | `kp` | 0.02 | duty/(rad/s) | 車輪速度 PI |
 | `ki` | 0.4 | duty/rad | |
 | `kff` | 0.04 | duty/(rad/s) | フィードフォワード（≒ 1/K） |
+| `tau_ff` | 0.06 | s | 加速度フィードフォワードの時定数（≒ モータ時定数 τ） |
 | `u_deadzone` | 0.10 | duty | 不感帯補償量 |
 | `watchdog_ms` | 300 | ms | |
 | `telemetry_hz` | 50 | Hz | |

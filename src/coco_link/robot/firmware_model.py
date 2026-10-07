@@ -35,6 +35,7 @@ DEFAULT_PARAMS: dict[str, float] = {
     "kp": 0.02,
     "ki": 0.4,
     "kff": 0.04,
+    "tau_ff": 0.06,
     "u_deadzone": 0.10,
     "watchdog_ms": 300,
     "telemetry_hz": 50,
@@ -58,6 +59,7 @@ PARAM_RANGES: dict[str, tuple[float, float]] = {
     "kp": (0.0, 1.0),
     "ki": (0.0, 20.0),
     "kff": (0.0, 1.0),
+    "tau_ff": (0.0, 0.5),
     "u_deadzone": (0.0, 0.6),
     "watchdog_ms": (50, 5000),
     "telemetry_hz": (1, 100),
@@ -118,16 +120,25 @@ class WheelController:
 
     def __init__(self) -> None:
         self.integral = 0.0
+        self.ref_filt = 0.0
 
     def reset(self) -> None:
         self.integral = 0.0
+        self.ref_filt = 0.0
 
-    def update(self, w_ref: float, w: float, dt: float, p: dict[str, float], batt_v: float) -> float:
+    def update(self, w_ref: float, w: float, dt: float, p: dict[str, float], batt_v: float,
+               dw_ref: float = 0.0) -> float:
+        """w_ref: 目標角速度, w: 推定角速度, dw_ref: 目標角加速度（加速度フィードフォワード用）."""
+        # 目標値にも速度推定と同じローパスを通し、遅れを揃えてから偏差をとる。
+        # 揃えないと、加速中に推定値の遅れぶんの偽の偏差が PI に入りオーバーシュートする (spec §5.3)
+        self.ref_filt += VEL_LPF_ALPHA * (w_ref - self.ref_filt)
         if abs(w_ref) < STOP_W_EPS and abs(w) < 0.2:
             self.integral = 0.0
+            self.ref_filt = 0.0
             return 0.0
-        e = w_ref - w
-        u_ff = p["kff"] * w_ref
+        e = self.ref_filt - w
+        # モデル τ dω/dt + ω = K u の逆系: u = (ω* + τ dω*/dt) / K  （2自由度制御のフィードフォワード）
+        u_ff = p["kff"] * (w_ref + p["tau_ff"] * dw_ref)
         u_dz = math.copysign(p["u_deadzone"], w_ref) if abs(w_ref) >= STOP_W_EPS else 0.0
         u_unsat = u_ff + u_dz + p["kp"] * e + self.integral
         comp = p["batt_nominal_v"] / batt_v if batt_v > 1.0 else 1.0
@@ -373,6 +384,8 @@ class FirmwareModel:
         dmax = p["accel_limit"] / r * dt
         out = []
         for i, w_ref in enumerate((wl, wr)):
-            self._w_target[i] += clamp(w_ref - self._w_target[i], -dmax, dmax)
-            out.append(self._ctrl[i].update(self._w_target[i], self._omega[i], dt, p, self.batt_v))
+            step = clamp(w_ref - self._w_target[i], -dmax, dmax)
+            self._w_target[i] += step
+            out.append(self._ctrl[i].update(self._w_target[i], self._omega[i], dt, p, self.batt_v,
+                                            dw_ref=step / dt if dt > 0 else 0.0))
         return out[0], out[1]
