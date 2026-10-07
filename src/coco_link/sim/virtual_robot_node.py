@@ -58,6 +58,8 @@ class VirtualRobotNode:
                 self._telem_acc %= 1.0 / telem_hz
                 telem = fw.telemetry()
             truth = m.SimTruth(values=robot.truth_dict())
+            # 実機同様、t_ms はロボット自身の時計（テレメトリ値を取得した制御周期の時刻）
+            t_ms = int(fw.t * 1000) & 0xFFFFFFFF
         self._hello_acc += dt
         if self._hello_acc >= 1.0:
             self._hello_acc = 0.0
@@ -65,4 +67,4 @@ class VirtualRobotNode:
             if self.operator is not None:
                 self.endpoint.send(truth, self.operator)
         if telem is not None and self.operator is not None:
-            self.endpoint.send(telem, self.operator)
+            self.endpoint.send(telem, self.operator, t_ms)

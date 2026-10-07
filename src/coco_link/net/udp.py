@@ -61,9 +61,10 @@ class UdpEndpoint:
             self._thread = None
         self._sock.close()
 
-    def send(self, msg: Message, addr: Address) -> bool:
+    def send(self, msg: Message, addr: Address, t_ms: int | None = None) -> bool:
+        """t_ms を省略すると送信時刻を入れる."""
         try:
-            self._sock.sendto(self.sender.encode(msg), addr)
+            self._sock.sendto(self.sender.encode(msg, t_ms), addr)
             self.tx_count += 1
             return True
         except (OSError, ProtocolError) as e:

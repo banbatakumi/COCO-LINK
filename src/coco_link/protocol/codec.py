@@ -144,7 +144,7 @@ class Sender:
         self.src = src
         self._seq = 0
 
-    def encode(self, msg: Message) -> bytes:
-        raw = encode(msg, self.src, self._seq)
+    def encode(self, msg: Message, t_ms: int | None = None) -> bytes:
+        raw = encode(msg, self.src, self._seq, t_ms)
         self._seq = (self._seq + 1) & 0xFFFFFFFF
         return raw
