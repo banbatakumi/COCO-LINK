@@ -69,6 +69,11 @@ def wheels(phase: str, duration: float, fn: Callable[[float], tuple[float, float
     return Segment(phase, duration, lambda t: RobotCommand(wheel=fn(t), safety=False))
 
 
+def coast(phase: str, duration: float) -> Segment:
+    """開ループで duty 0（閉ループの停止制御を効かせず、自然に止まらせる）."""
+    return wheels(phase, duration, lambda t: (0.0, 0.0))
+
+
 def vel(phase: str, duration: float, vx: float, wz: float) -> Segment:
     return Segment(phase, duration, lambda t: RobotCommand(vx=vx, wz=wz))
 
@@ -118,11 +123,11 @@ class DeadzoneRamp(Experiment):
     def segments(self, ctx):
         o = ctx.options
         T, umax = o.ramp_time, o.max_duty
-        return [hold("pre", 0.5),
+        return [coast("pre", 0.5),
                 wheels("ramp_pos", T, lambda t: (umax * t / T, -umax * t / T)),
-                hold("rest", 1.0),
+                coast("rest", 1.0),
                 wheels("ramp_neg", T, lambda t: (-umax * t / T, umax * t / T)),
-                hold("post", 0.5)]
+                coast("post", 0.5)]
 
     def estimate(self, rec, ctx):
         v_nom = ctx.params.batt_nominal_v
@@ -134,6 +139,9 @@ class DeadzoneRamp(Experiment):
             w = np.array([getattr(x, f"w{side}") for x in s])
             v = np.array([x.batt_v for x in s])
             fit = est.static_gain_deadzone(u, w, v, v_nom)
+            # ランプ中の ω は入力より τ 遅れるので、u0 は (ランプ速度 × τ) だけ大きく出る。現時点の τ で補正する
+            ramp_rate = ctx.options.max_duty / ctx.options.ramp_time
+            fit.u0 -= ramp_rate * getattr(ctx.params, f"motor_tau_{side}")
             out.params[f"deadzone_{side}"] = fit.u0
             out.metrics[f"static_gain_{side}"] = fit.K
             out.metrics[f"r2_{side}"] = fit.r2
@@ -156,11 +164,11 @@ class StepResponse(Experiment):
         return [float(x) for x in ctx.options.step_levels.split(",") if x.strip()]
 
     def segments(self, ctx):
-        segs = [hold("pre", 0.5)]
+        segs = [coast("pre", 0.5)]
         for i, u in enumerate(self.levels(ctx)):
             sgn = 1 if i % 2 == 0 else -1
             segs.append(wheels(f"step{i}", ctx.options.step_time, lambda t, u=u, s=sgn: (s * u, -s * u)))
-            segs.append(hold(f"rest{i}", 0.8))
+            segs.append(coast(f"rest{i}", 0.8))   # duty 0 の自然減衰も同定に使う
         return segs
 
     def estimate(self, rec, ctx):
