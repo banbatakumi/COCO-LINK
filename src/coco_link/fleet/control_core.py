@@ -66,6 +66,7 @@ class ControlCore:
         self.safety_enabled = True
         self.snapshot = CoreSnapshot()
         self.event_listeners: list[Callable[[str, dict[str, Any]], None]] = []
+        self.tick_listeners: list[Callable[[CoreSnapshot], None]] = []   # 制御周期ごと（ロガー等）
         self._manual: dict[int, tuple[float, float, float]] = {}    # rid -> (vx, wz, 時刻)
         self._last_led: dict[int, tuple[tuple, float]] = {}
         self._thread: threading.Thread | None = None
@@ -204,6 +205,8 @@ class ControlCore:
                 world=world, commands=cmds, mode_name=mode.name if mode else None,
                 mode_status=mode.status if mode else "", viz=mode.viz if mode else Visualization(),
                 estopped=self.estopped, loop_hz=1.0 / dt)
+        for fn in list(self.tick_listeners):
+            fn(self.snapshot)
         return self.snapshot
 
     def _apply_safety(self, world: World, cmds: dict[int, RobotCommand]) -> None:

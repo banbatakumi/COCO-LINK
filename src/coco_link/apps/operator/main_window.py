@@ -17,6 +17,7 @@ class OperatorWindow(QMainWindow):
     def __init__(self, core: ControlCore):
         super().__init__()
         self.core = core
+        self.logger = None
         self.setWindowTitle("COCO-LINK Operator")
         self.resize(1400, 860)
 
@@ -78,6 +79,24 @@ class OperatorWindow(QMainWindow):
         tb.addAction(trails)
         self.toolbar = tb
 
+    def attach_logger(self, logger) -> None:
+        """MCAP ロガーと記録ボタンを付ける."""
+        self.logger = logger
+        act = QAction("● MCAP 記録", self, checkable=True)
+        act.toggled.connect(self._toggle_record)
+        self.toolbar.addSeparator()
+        self.toolbar.addAction(act)
+        self.record_action = act
+
+    def _toggle_record(self, on: bool) -> None:
+        if on:
+            path = self.logger.start()
+            self.statusBar().showMessage(f"記録開始: {path}", 5000)
+        else:
+            path = self.logger.stop()
+            if path:
+                self.statusBar().showMessage(f"保存しました: {path}", 8000)
+
     def add_tab(self, widget: QWidget, title: str) -> None:
         self.tabs.addTab(widget, title)
 
@@ -103,7 +122,9 @@ class OperatorWindow(QMainWindow):
             self.status.setText(
                 f"制御 {snap.loop_hz:4.1f} Hz   接続 {n_conn} 台   ビジョン {vision}   "
                 f"受信ポート robot:{self.core.fleet.endpoint.port} vision:{self.core.world_model.endpoint.port}"
-                + ("   ⚠ E-STOP 中" if snap.estopped else ""))
+                + ("   ⚠ E-STOP 中" if snap.estopped else "")
+                + (f"   ● 記録中 {self.logger.count} msgs" if getattr(self, "logger", None) and self.logger.recording
+                   else ""))
 
     def closeEvent(self, e) -> None:
         self.timer.stop()
