@@ -8,6 +8,6 @@ robots:
   - {id: 5, x: 2.6, y: 0.5, th: 2.0}
 persons: []
 obstacles:
-  - {x: 1.5, y: 1.0, r: 0.10}
+  - {x: 0.5, y: 1.0, r: 0.10}
 cargo:
   - {x: 2.7, y: 1.0, r: 0.05}
