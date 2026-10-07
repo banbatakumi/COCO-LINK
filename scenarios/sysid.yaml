@@ -1,0 +1,7 @@
+# システム同定用: 広い空間にロボット 1 台
+field: {w: 3.0, h: 2.0}
+robots:
+  - {id: 1, x: 1.0, y: 1.0, th: 0.0}
+persons: []
+obstacles: []
+cargo: []
