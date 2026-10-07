@@ -24,8 +24,14 @@ def parse_args(argv=None):
 
 def build_window(core: ControlCore):
     """メインウィンドウを組み立てる（同定・ログのタブもここで追加）."""
+    from ...sysid.runner import SysIdRunner
     from .main_window import OperatorWindow
-    return OperatorWindow(core)
+    from .sysid_panel import SysIdPanel
+
+    win = OperatorWindow(core)
+    win.sysid_runner = SysIdRunner(core)
+    win.add_tab(SysIdPanel(win.sysid_runner), "システム同定")
+    return win
 
 
 def main(argv=None) -> int:
