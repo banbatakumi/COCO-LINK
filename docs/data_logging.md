@@ -1,7 +1,7 @@
 # データロギング（MCAP）
 
 操作GUIのツールバー「● MCAP 記録」（または `coco-operator --record`）で、通信と制御の全データを
-`logs/coco_YYYYmmdd_HHMMSS.mcap` に記録する。実装: `src/coco_link/datalog/mcap_logger.py`
+`pc/logs/coco_YYYYmmdd_HHMMSS.mcap` に記録する。実装: `pc/src/coco_link/datalog/mcap_logger.py`
 
 ## 記録されるトピック
 
@@ -23,6 +23,7 @@
   - Raw Messages パネル: メッセージの中身をそのまま見る
 - **CSV に変換**して Excel / MATLAB / pandas で解析:
   ```bash
+  cd pc
   python tools/mcap_to_csv.py logs/coco_20261007_120000.mcap
   ```
 - **Python から直接**:
