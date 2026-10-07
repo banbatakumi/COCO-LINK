@@ -4,7 +4,7 @@
 |---|---|
 | 対象 | COCO-LINK 移動ロボット（全台同一構成） |
 | 版 | v1.0（プロトコル v1 対応） |
-| 参照実装 | `src/coco_link/robot/firmware_model.py`（シミュレータで動く Python 版。状態機械・制御則は本書と同一） |
+| 参照実装 | `pc/src/coco_link/robot/firmware_model.py`（シミュレータで動く Python 版。状態機械・制御則は本書と同一） |
 | 通信仕様 | [protocol.md](protocol.md) |
 
 本書は ESP32 ファームウェアを実装する人が **これだけ読めば作れる** ことを目標に書かれている。未定事項は **【TBD】** と記す。

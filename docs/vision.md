@@ -1,7 +1,7 @@
 # ビジョンシステム
 
 天井カメラでフィールドを撮影し、ロボットの位置・向き（ArUco マーカー）と、人・障害物・物資（色）を認識して
-`world_state` を操作GUIへ送る。コード: `src/coco_link/vision/`, GUI: `coco-vision`
+`world_state` を操作GUIへ送る。コード: `pc/src/coco_link/vision/`, GUI: `coco-vision`
 
 ```
 カメラ → ArUco 検出 ─┬→ 四隅マーカー → 床面ホモグラフィ（自動キャリブレーション）
@@ -15,11 +15,12 @@
 ### マーカーの印刷
 
 ```bash
-python tools/generate_aruco_markers.py            # output/markers/aruco_markers_A4.pdf
+cd pc
+python tools/generate_aruco_markers.py            # pc/output/markers/aruco_markers_A4.pdf
 ```
 
 - 辞書: `DICT_4X4_50`（4×4 ビット。小さくても認識しやすい）
-- **ロボット**: ID = ロボットID（0–29）。一辺 60 mm（`config/field.yaml: robot_marker_size`）
+- **ロボット**: ID = ロボットID（0–29）。一辺 60 mm（`pc/config/field.yaml: robot_marker_size`）
 - **四隅**: ID 40, 41, 42, 43 を フィールドの (0,0), (w,0), (w,h), (0,h) に、**マーカーの中心が角に来るように**置く。一辺 100 mm
 - 印刷は「実際のサイズ」で。印刷後に黒枠の一辺を定規で測って確認する
 - マーカーの周囲には白い余白（1 セル以上）が必要
@@ -57,7 +58,7 @@ $H$ は自由度 8 なので、4 点の対応から求まる（`cv2.findHomograp
 
 - **自動**: 四隅マーカー（ID 40–43）が全部見えると毎フレーム再計算する（カメラが多少動いても追従）
 - **手動**: 「4 点クリックで校正」→ 画面上でフィールドの 原点 → (w,0) → (w,h) → (0,h) をクリック
-- 「校正結果を保存」で `config/vision_calibration.yaml` に保存され、次回起動時に読み込まれる
+- 「校正結果を保存」で `pc/config/vision_calibration.yaml` に保存され、次回起動時に読み込まれる
 
 ### 視差補正
 
@@ -80,7 +81,7 @@ OpenCV のコーナー順は（左上, 右上, 右下, 左下）なので
 サブピクセルのコーナー補正（`CORNER_REFINE_SUBPIX`）を有効にしている。
 信頼度 `conf` はマーカーの辺の長さの最小/最大比（斜めから見て歪むほど小さい）。
 
-合成画像でのテスト（`tests/test_vision.py`）: 位置誤差 < 1 cm、向き誤差 < 3°。
+合成画像でのテスト（`pc/tests/test_vision.py`）: 位置誤差 < 1 cm、向き誤差 < 3°。
 
 ## 5. 色の認識
 
@@ -97,7 +98,7 @@ OpenCV のコーナー順は（左上, 右上, 右下, 左下）なので
 | 物資 | 青 | 100–130 |
 
 人は緑のビブス・帽子などを身につける想定。閾値は GUI のスライダーで調整し（「マスク表示」で確認）、
-「閾値を保存」で `config/vision_colors.yaml` に保存する（`field.yaml` より優先）。
+「閾値を保存」で `pc/config/vision_colors.yaml` に保存する（`field.yaml` より優先）。
 
 ## 6. 遅延
 
