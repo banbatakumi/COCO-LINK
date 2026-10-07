@@ -1,0 +1,8 @@
+# 通信設定 (docs/protocol.md §2)
+operator_host: 127.0.0.1     # シミュレータ/ビジョンが送る先 (別PCで動かす場合は操作PCのIP)
+operator_robot_port: 50000   # hello / telemetry を受ける
+operator_vision_port: 50001  # world_state を受ける
+robot_port: 50100            # 実機の受信ポート。仮想ロボットは robot_port + robot_id
+bind_host: 0.0.0.0
+control_hz: 20.0             # 上位制御の周期
+disconnect_timeout_s: 2.0
