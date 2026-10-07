@@ -1,0 +1,14 @@
+# フィールドとビジョンの設定 (docs/vision.md)
+width: 3.0    # [m] x 方向
+height: 2.0   # [m] y 方向
+# 四隅マーカー: 原点(0,0), (w,0), (w,h), (0,h) の順
+corner_marker_ids: [40, 41, 42, 43]
+corner_marker_size: 0.10   # [m] 黒枠の一辺
+robot_marker_size: 0.06    # [m]
+aruco_dict: DICT_4X4_50
+min_blob_area_m2: 0.002    # これより小さい色領域は無視
+# HSV 閾値 (OpenCV: H 0-179)。赤は H が 0 を跨ぐので h_min > h_max
+colors:
+  person:   {h_min: 40,  h_max: 85,  s_min: 80, s_max: 255, v_min: 50, v_max: 255}   # 緑
+  obstacle: {h_min: 170, h_max: 8,   s_min: 120, s_max: 255, v_min: 70, v_max: 255}  # 赤
+  cargo:    {h_min: 100, h_max: 130, s_min: 120, s_max: 255, v_min: 50, v_max: 255}  # 青
