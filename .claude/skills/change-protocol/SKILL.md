@@ -14,7 +14,7 @@ description: COCO-LINK の UDP 通信プロトコル（メッセージ種別・�
 3. 送信側・受信側を更新:
    - ロボット側の挙動: `src/coco_link/robot/firmware_model.py`（ファームの参照実装）
    - 操作GUI側: `src/coco_link/fleet/`
-   - ビジョン: `src/coco_link/vision/publisher.py` と `src/coco_link/sim/vision_emulator.py` の **両方**
+   - ビジョン: `src/coco_link/vision/pipeline.py`（実ビジョン）と `src/coco_link/sim/vision_emulator.py`（仮想ビジョン）の **両方**
 4. `docs/firmware_spec.md` の該当箇所（§4〜§8, §11）を更新。
 5. `tests/test_protocol.py` に往復（encode → decode）テストを追加。
 6. 1400 byte 制限を超えないか確認（`tests/test_protocol.py::test_size_limits`）。
