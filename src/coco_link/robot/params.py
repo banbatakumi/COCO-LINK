@@ -67,8 +67,9 @@ class RobotParams:
 
     def randomized(self, rng: random.Random, spread: float = 0.10) -> RobotParams:
         """個体差を模擬した真値を作る（シミュレータ用）. 各値を ±spread の一様乱数で揺らす."""
-        jitter = {"wheel_radius", "tread", "motor_gain_l", "motor_gain_r", "motor_tau_l", "motor_tau_r",
-                  "deadzone_l", "deadzone_r"}
+        # 順序付きのタプルにすること（set だとプロセスごとに反復順が変わり、同じ seed でも再現しない）
+        jitter = ("wheel_radius", "tread", "motor_gain_l", "motor_gain_r", "motor_tau_l", "motor_tau_r",
+                  "deadzone_l", "deadzone_r")
         out = {f.name: getattr(self, f.name) for f in fields(self)}
         for k in jitter:
             out[k] *= 1.0 + rng.uniform(-spread, spread)
