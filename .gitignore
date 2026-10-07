@@ -16,6 +16,9 @@ logs/
 screenshots/
 output/
 
+# PlatformIO（firmware/）
+.pio/
+
 # OS / IDE
 .DS_Store
 Thumbs.db

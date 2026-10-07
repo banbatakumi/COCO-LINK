@@ -1,8 +1,8 @@
 # COCO-LINK 通信プロトコル仕様 v1
 
 本書は COCO-LINK の全プロセス（操作GUI・シミュレータ・ビジョン・ESP32 ファームウェア）が守る **唯一の通信契約** である。
-実装は `src/coco_link/protocol/messages.py`（Python）と `docs/firmware_spec.md`（ESP32）に反映されている。
-**変更するときは本書・`messages.py`・`firmware_spec.md`・`tests/test_protocol.py` を必ず同時に更新すること。**
+実装は `pc/src/coco_link/protocol/messages.py`（Python）と `docs/firmware_spec.md`（ESP32）に反映されている。
+**変更するときは本書・`messages.py`・`firmware_spec.md`・`pc/tests/test_protocol.py` を必ず同時に更新すること。**
 
 ---
 
@@ -25,7 +25,7 @@
 | 仮想ロボット (simulator) | 127.0.0.1:**50100 + robot_id** | operator:50000 |
 | ビジョン (vision / simulator のビジョンエミュレータ) | なし | operator:50001 |
 
-ポート番号は `config/network.yaml` で変更できる。
+ポート番号は `pc/config/network.yaml` で変更できる。
 
 ### 2.1 接続（ディスカバリ）手順
 
@@ -175,4 +175,4 @@ nc -ul 50000
 echo '{"v":1,"type":"buzzer","src":"op","seq":0,"t_ms":0,"melody":"ok"}' | nc -u -w0 192.168.0.101 50100
 ```
 
-Windows では `tools/` の Python スクリプトや Wireshark（フィルタ `udp.port==50000`）を使う。
+Windows では `pc/tools/` の Python スクリプトや Wireshark（フィルタ `udp.port==50000`）を使う。

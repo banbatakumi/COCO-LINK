@@ -46,6 +46,6 @@ docs(protocol): telemetry に rx_count を追加
 ## その他
 
 - ログ（`logs/*.mcap`）・仮想環境（`.venv/`）はコミットしない（`.gitignore` 済み）
-- 同定結果 `config/robots/robot_XX.yaml` は **コミットする**（チームで共有するため）
+- 同定結果 `pc/config/robots/robot_XX.yaml` は **コミットする**（チームで共有するため）
 - プロトコルを変える PR は、タイトルに `protocol` scope を付け、レビューでファーム担当者に必ず確認してもらう
 - リリース時（中間発表・最終発表など）はタグを打つ: `git tag -a v0.1.0 -m "中間発表版"`

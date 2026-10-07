@@ -1,12 +1,12 @@
 # モードの追加ガイド
 
-COCO-LINK の上位制御は **モード（プラグイン）** で拡張する。`src/coco_link/modes/` に 1 ファイル追加するだけで、
+COCO-LINK の上位制御は **モード（プラグイン）** で拡張する。`pc/src/coco_link/modes/` に 1 ファイル追加するだけで、
 操作GUIのモード一覧・パラメータ入力フォームに自動で現れる。GUI のコードを触る必要はない。
 
 ## 1. 最小の例
 
 ```python
-# src/coco_link/modes/spin.py
+# pc/src/coco_link/modes/spin.py
 from dataclasses import dataclass
 
 from .base import Mode, RobotCommand, param
@@ -65,7 +65,7 @@ class SpinMode(Mode):
 
 - `step()` の中で `time.sleep`、ソケット、Qt を使わない。時間は `dt` と `world.t` で扱う。
 - 制御則は `control/` に関数として切り出し、モードは「組み合わせ」に徹する（テストしやすい）。
-- テストは `tests/helpers.py` の `run_closed_loop(engine, mode, seconds)` で、通信抜きのシミュレーション閉ループを高速に回して収束を確認する（`tests/test_modes.py` 参照）。
+- テストは `pc/tests/helpers.py` の `run_closed_loop(engine, mode, seconds)` で、通信抜きのシミュレーション閉ループを高速に回して収束を確認する（`pc/tests/test_modes.py` 参照）。
 
 ## 6. 今後追加したいモードの設計指針
 

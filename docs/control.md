@@ -1,6 +1,6 @@
 # 制御則の解説
 
-本書は `src/coco_link/control/` と `src/coco_link/modes/` の制御アルゴリズムを数式で説明する。
+本書は `pc/src/coco_link/control/` と `pc/src/coco_link/modes/` の制御アルゴリズムを数式で説明する。
 階層は次のとおり。
 
 ```

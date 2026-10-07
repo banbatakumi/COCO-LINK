@@ -1,5 +1,24 @@
 # COCO-LINK アーキテクチャ
 
+## 0. リポジトリ構成
+
+PC ソフトとロボットのファームウェアを 1 つのリポジトリで管理する（モノレポ）。両者をつなぐ通信仕様は `docs/` に置き、どちらからも参照する。
+
+```
+COCO-LINK/
+├── pc/         PC 側ソフト（Python）: 操作GUI・シミュレータ・ビジョンと共通ライブラリ coco_link
+│   ├── pyproject.toml, src/coco_link/, tests/, tools/, config/, scenarios/
+│   └── CLAUDE.md   PC 側の開発ガイド
+├── firmware/   ESP32 ファームウェア（PlatformIO / Arduino。未着手）
+│   └── CLAUDE.md   ファーム側の開発ガイド
+├── docs/       共通の設計文書（★protocol.md と firmware_spec.md が PC ⇄ ファームの契約）
+├── .github/    CI
+├── .claude/    Claude Code のスキル
+└── CLAUDE.md   リポジトリ全体のガイド
+```
+
+PC 側のコマンド（`pip install -e`, `pytest`, `coco-*`）は `pc/` ディレクトリで実行する。
+
 ## 1. システム全体像
 
 COCO-LINK は **3つの独立したPCプロセス** と **N台の同一構成ロボット** から成る。プロセス間・ロボット間はすべて UDP + JSON（[protocol.md](protocol.md)）でつながる。ROS は使わない。
@@ -31,7 +50,7 @@ flowchart LR
 - 上位制御（モード・同定・ログ）はシミュレータで開発・テストし、そのまま実機で動く
 - シミュレータ内の仮想ロボット（`robot/firmware_model.py`）は ESP32 ファームウェアの **参照実装** でもある。ファーム担当者は同じ状態機械・制御則を C++ で書けばよい
 
-## 2. レイヤ構成（`src/coco_link/`）
+## 2. レイヤ構成（`pc/src/coco_link/`）
 
 ```
 apps/         GUI (PySide6)。ロジックは持たず、下のレイヤを呼ぶだけ
@@ -116,8 +135,8 @@ Camera/VideoFile → ArUco検出 → 床面ホモグラフィ(四隅マーカー
 
 | ファイル | 内容 |
 |---|---|
-| `config/network.yaml` | ポート、ホスト |
-| `config/field.yaml` | フィールド寸法、四隅マーカーID、色閾値 |
-| `config/robots/default.yaml` | ロボット物理パラメータの公称値 |
-| `config/robots/robot_XX.yaml` | 個体ごとのシステム同定結果（あれば default を上書き） |
-| `scenarios/*.yaml` | シミュレータの初期配置 |
+| `pc/config/network.yaml` | ポート、ホスト |
+| `pc/config/field.yaml` | フィールド寸法、四隅マーカーID、色閾値 |
+| `pc/config/robots/default.yaml` | ロボット物理パラメータの公称値 |
+| `pc/config/robots/robot_XX.yaml` | 個体ごとのシステム同定結果（あれば default を上書き） |
+| `pc/scenarios/*.yaml` | シミュレータの初期配置 |

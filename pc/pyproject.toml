@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "coco-link"
 version = "0.1.0"
 description = "COCO-LINK: 複数台協調パフォーマンス＆物資運搬ロボットシステム (操作GUI / シミュレータ / ビジョン)"
-readme = "README.md"
+readme = "README.md"   # pc/README.md
 requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = [
