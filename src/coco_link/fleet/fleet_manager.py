@@ -16,8 +16,8 @@ from .robot_proxy import RobotProxy
 
 log = logging.getLogger(__name__)
 
-# (direction "rx"/"tx", robot_id, message, monotonic time)
-MessageListener = Callable[[str, int, m.Message, float], None]
+# (direction "rx"/"tx", robot_id, message, operator のモノトニック時刻 [s], 送信者の t_ms（tx は None）)
+MessageListener = Callable[[str, int, m.Message, float, int | None], None]
 
 
 class FleetManager:
@@ -70,7 +70,7 @@ class FleetManager:
                 if sent and sent[0] == msg.nonce:
                     proxy.rtt_ms = (now - sent[1]) * 1000.0
         for fn in list(self.listeners):
-            fn("rx", rid, msg, now)
+            fn("rx", rid, msg, now, env.t_ms)
 
     # ------------------------------------------------------------ 送信
     def send(self, robot_id: int, msg: m.Message) -> bool:
@@ -83,7 +83,7 @@ class FleetManager:
         if ok:
             now = self.clock()
             for fn in list(self.listeners):
-                fn("tx", robot_id, msg, now)
+                fn("tx", robot_id, msg, now, None)
         return ok
 
     def send_all(self, msg: m.Message, only_connected: bool = True) -> None:
