@@ -1,0 +1,63 @@
+"""coco-operator: 操作GUI（上位制御）.
+
+シミュレータでも実機でも同じように起動する:
+    coco-operator
+"""
+
+from __future__ import annotations
+
+import argparse
+from pathlib import Path
+
+from ...common.config import NetworkConfig
+from ...fleet.control_core import ControlCore
+
+
+def parse_args(argv=None):
+    ap = argparse.ArgumentParser(prog="coco-operator", description="COCO-LINK 操作GUI")
+    ap.add_argument("--control-hz", type=float, help="制御周期 [Hz]")
+    ap.add_argument("--mode", help="起動直後に開始するモード名")
+    ap.add_argument("--record", action="store_true", help="起動と同時に MCAP 記録を開始")
+    ap.add_argument("--quit-after", type=float, help="指定秒数後に終了（テスト用）")
+    ap.add_argument("--screenshot", type=Path, help="終了時にウィンドウを PNG 保存（テスト用）")
+    return ap.parse_args(argv)
+
+
+def build_window(core: ControlCore):
+    """メインウィンドウを組み立てる（同定・ログのタブもここで追加）."""
+    from ...datalog import McapLogger
+    from ...sysid.runner import SysIdRunner
+    from .main_window import OperatorWindow
+    from .sysid_panel import SysIdPanel
+
+    win = OperatorWindow(core)
+    win.sysid_runner = SysIdRunner(core)
+    win.add_tab(SysIdPanel(win.sysid_runner), "システム同定")
+    win.attach_logger(McapLogger(core))
+    return win
+
+
+def main(argv=None) -> int:
+    args = parse_args(argv)
+    net = NetworkConfig.load()
+    if args.control_hz:
+        net.control_hz = args.control_hz
+    from ..common.app import create_app, run_for
+
+    app = create_app("COCO-LINK Operator")
+    core = ControlCore(net).start()
+    win = build_window(core)
+    win.show()
+    if args.mode:
+        core.start_mode(args.mode)
+    if args.record:
+        win.record_action.setChecked(True)
+    shot = (lambda: win.grab().save(str(args.screenshot))) if args.screenshot else None
+    code = run_for(app, args.quit_after, shot)
+    win.logger.stop()
+    core.close()
+    return code
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

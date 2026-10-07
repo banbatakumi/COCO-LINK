@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "coco-link"
+version = "0.1.0"
+description = "COCO-LINK: 複数台協調パフォーマンス＆物資運搬ロボットシステム (操作GUI / シミュレータ / ビジョン)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = [
+    "PySide6>=6.6",
+    "pyqtgraph>=0.13.4",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    # Qt を同梱しない headless 版を使う (PySide6 との Qt プラグイン衝突を避けるため)
+    "opencv-python-headless>=4.8",
+    "mcap>=1.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+coco-operator = "coco_link.apps.operator.__main__:main"
+coco-sim = "coco_link.apps.simulator.__main__:main"
+coco-vision = "coco_link.apps.vision.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests", "tools"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM"]
+ignore = [
+    "E501",   # 行長は formatter に任せる
+    "SIM102", # 状態機械では入れ子 if の方が読みやすい
+    "SIM108", # 三項演算子を強制しない
+    "RUF001", "RUF002", "RUF003",  # 日本語の全角文字を許可
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
