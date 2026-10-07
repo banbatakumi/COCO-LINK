@@ -40,6 +40,8 @@ src = ["src", "tests", "tools"]
 select = ["E", "F", "W", "I", "B", "UP", "SIM"]
 ignore = [
     "E501",   # 行長は formatter に任せる
+    "SIM102", # 状態機械では入れ子 if の方が読みやすい
+    "SIM108", # 三項演算子を強制しない
     "RUF001", "RUF002", "RUF003",  # 日本語の全角文字を許可
 ]
 
