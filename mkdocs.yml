@@ -1,0 +1,103 @@
+# 学習資料・設計文書の Web サイト（GitHub Pages）
+#   ローカルで見る:  pip install -r docs/requirements.txt && mkdocs serve   → http://127.0.0.1:8000
+#   公開:            main に push すると .github/workflows/docs.yml が自動でビルド・公開する
+site_name: COCO-LINK
+site_description: 複数台協調パフォーマンス＆物資運搬ロボット — 学習資料と設計文書
+site_url: https://banbatakumi.github.io/COCO-LINK/
+repo_url: https://github.com/banbatakumi/COCO-LINK
+repo_name: banbatakumi/COCO-LINK
+edit_uri: edit/main/docs/
+docs_dir: docs
+
+theme:
+  name: material
+  language: ja
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - navigation.indexes
+    - toc.follow
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: orange
+      toggle: {icon: material/weather-night, name: ダークモードへ}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: orange
+      toggle: {icon: material/weather-sunny, name: ライトモードへ}
+
+plugins:
+  - search:
+      lang: ja
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - footnotes
+  - def_list
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+      # 日本語の見出しもそのままアンカーにする（GitHub と同じ挙動）
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds: {case: lower}
+
+extra_javascript:
+  - javascripts/mathjax.js
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+nav:
+  - ホーム: index.md
+  - 学習資料:
+      - study/index.md
+      - 1. 全体像: study/01_overview.md
+      - 2. 制御の基礎の復習: study/02_control_basics.md
+      - 3. ロボットのモデルと車輪速度制御: study/03_robot_model.md
+      - 4. システム同定: study/04_system_identification.md
+      - 5. 上位制御（隊形・追従・安全）: study/05_upper_control.md
+      - 6. ビジョン: study/06_vision.md
+      - 7. ソフトウェアの仕組み: study/07_software.md
+      - 8. 想定問答集: study/08_qa.md
+      - 用語集: study/glossary.md
+  - 設計文書:
+      - アーキテクチャ: architecture.md
+      - 通信プロトコル: protocol.md
+      - ファームウェア仕様書: firmware_spec.md
+      - 制御則: control.md
+      - システム同定（技術）: system_identification.md
+      - ビジョン（技術）: vision.md
+      - データロギング: data_logging.md
+      - モードの追加: adding_a_mode.md
+      - Git 運用: git_workflow.md
+
+# リンク切れ・存在しない見出しへのリンクを警告にする（CI の --strict で失敗させる）
+validation:
+  omitted_files: warn
+  absolute_links: info
+  unrecognized_links: warn
+  anchors: warn
