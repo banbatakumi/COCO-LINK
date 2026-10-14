@@ -1,0 +1,6 @@
+# ドキュメントサイト（mkdocs.yml）のビルド用
+# MkDocs 2.0 はプラグイン・テーマと互換性がないため 1.x に固定する
+mkdocs>=1.6,<2
+mkdocs-material>=9.5,<10
+# 学習資料の図の再生成用（docs/study/figures/gen_figures.py）
+matplotlib>=3.8

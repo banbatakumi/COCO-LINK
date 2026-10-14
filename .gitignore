@@ -10,6 +10,9 @@ dist/
 .ruff_cache/
 .mypy_cache/
 
+# MkDocs のビルド結果
+site/
+
 # 実行時に生成されるもの
 logs/
 *.mcap
