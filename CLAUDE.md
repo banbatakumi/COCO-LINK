@@ -10,6 +10,7 @@
 | `pc/` | PC 側ソフト（Python 3.11+ / PySide6）: 操作GUI `coco-operator`・シミュレータ `coco-sim`・ビジョン `coco-vision` と共通ライブラリ | `pc/CLAUDE.md` |
 | `firmware/` | ESP32 ファームウェア（PlatformIO / Arduino）。**未着手** | `firmware/CLAUDE.md` |
 | `docs/` | 共通の設計文書。`protocol.md` と `firmware_spec.md` が PC ⇄ ファームの契約 | — |
+| `docs/study/` | 班員向けの学習資料（口頭試問対策）。`mkdocs.yml` で Web サイト化し GitHub Pages に公開 | 下の「学習資料」 |
 | `.github/` | CI（`pc/` の lint + test を Ubuntu/macOS/Windows で） | — |
 | `.claude/skills/` | スキル: `add-mode`（モード追加）, `change-protocol`（プロトコル変更） | — |
 
@@ -43,6 +44,16 @@ PC 側のコマンドは **すべて `pc/` で実行する**（`config/`・`scen
    どちらかを変えたら、もう片方も合わせる。
 4. 単位は SI。座標系は `docs/protocol.md §4`（フィールド: x右・y上、ロボット: x前・y左）。
 5. コメント・docstring・文書は日本語、識別子は英語。
+
+## 学習資料（docs/study/）とサイト
+
+- 班員が口頭試問で説明できるようにするための資料。https://banbatakumi.github.io/COCO-LINK/ に自動公開（`.github/workflows/docs.yml`）
+- **挙動・数値・用語に関わるコードを変えたら、`docs/study/` の該当ページを同じ PR で更新する**。
+  各ページ末尾の「対応するコード・文書」表で、どのコードがどのページに対応するか分かる。想定問答集 `08_qa.md` の回答も確認する
+- 図は `docs/study/figures/gen_figures.py` が実際のコードを動かして生成している。モデル・制御則・同定・モードを変えたら再生成してコミットする
+  （`pip install -e "pc[dev]" -r docs/requirements.txt` の後 `python docs/study/figures/gen_figures.py`）
+- 確認: `mkdocs build --strict`（リンク切れ・存在しない見出しへのリンクで失敗する）、`mkdocs serve` で http://127.0.0.1:8000
+- 見出しに数式（`$...$`）を入れない（目次に生の TeX が出る）。Mermaid の `subgraph` は向きが崩れるので避ける
 
 ## Git
 

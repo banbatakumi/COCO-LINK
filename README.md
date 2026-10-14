@@ -86,6 +86,10 @@ pytest
 
 ## ドキュメント
 
+📘 **学習資料・設計文書のサイト: https://banbatakumi.github.io/COCO-LINK/**
+（班員向けの解説・制御用語の復習・口頭試問の想定問答集。原稿は `docs/`）
+
+
 | 文書 | 内容 |
 |---|---|
 | [docs/architecture.md](docs/architecture.md) | 全体構成・スレッド・データフロー |
