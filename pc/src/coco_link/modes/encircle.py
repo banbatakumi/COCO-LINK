@@ -51,6 +51,7 @@ class EncircleMode(Mode):
         self._candidates = []
         self._lost = False
         self._just_selected = False
+        self._nav_targets: dict[int, Vec2] = {}
 
     def on_start(self, world) -> None:
         self.assignment = {}
@@ -76,6 +77,9 @@ class EncircleMode(Mode):
         self._just_selected = True
         self.status = f"{TARGET_LABELS[target.kind]}を包囲します"
 
+    def navigation_targets(self, world):
+        return dict(self._nav_targets)
+
     def on_stop(self, world) -> dict[int, RobotCommand]:
         self.assignment = {}
         self._ids = ()
@@ -83,6 +87,7 @@ class EncircleMode(Mode):
 
     def step(self, world, dt):
         p = self.params
+        self._nav_targets.clear()
         self._candidates = collect_targets(world)
 
         if self.target_kind is None or self.target_pos is None:
@@ -121,6 +126,7 @@ class EncircleMode(Mode):
         for rid, r in robots.items():
             target = slots[self.assignment[rid]]
             self.viz.targets[rid] = target
+            self._nav_targets[rid] = target.pos
             v_max = min(p.max_speed, r.params.max_speed)
             v, w, ok = go_to_pose(r.pose, target, v_max, 3.0, gains)
             others = [o.pose.pos for oid, o in robots.items() if oid != rid]

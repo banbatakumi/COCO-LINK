@@ -190,7 +190,7 @@ class ControlCore:
                     self.fleet.send_all(m.EStop())
             else:
                 if mode is not None:
-                    cmds.update(mode.step(world, dt))
+                    cmds.update(mode.run(world, dt))
                 if self.override is not None and self.override.active:
                     cmds.update(self.override.step(world, dt))
                 for rid, (vx, wz, t) in list(self._manual.items()):

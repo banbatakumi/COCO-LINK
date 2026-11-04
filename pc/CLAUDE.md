@@ -18,7 +18,7 @@ python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\act
 pip install -e ".[dev]"
 
 # 起動（それぞれ別ターミナル）
-coco-sim --scenario scenarios/demo_formation.yaml   # demo_follow.yaml / sysid.yaml もある
+coco-sim --scenario scenarios/demo_formation.yaml   # demo_follow.yaml / demo_transport.yaml / sysid.yaml もある
 coco-operator                                        # --mode フォーメーション --record も可
 coco-vision --synthetic                              # --camera 0 / --video file.mp4
 
@@ -44,8 +44,8 @@ src/coco_link/
   robot/      params.py（物理パラメータ）, kinematics.py, plant.py（真の物理）, firmware_model.py（★ESP32参照実装）
   sim/        engine.py（Qt非依存, 200Hz）, sensors.py, entities.py, virtual_robot_node.py, vision_emulator.py, runner.py
   fleet/      fleet_manager.py（発見・送信）, world_model.py（ビジョン+テレメトリ統合）, control_core.py（制御スレッド・調停）
-  control/    pose_tracking.py, path_follow.py, formation.py, safety.py（純粋関数）
-  modes/      base.py（Mode, RobotCommand, param）, registry.py（@register_mode, discover）, idle/formation/follow_person
+  control/    pose_tracking.py, path_follow.py, planning.py（占有格子+A*）, navigation.py（全モード共通ナビゲーション）, formation.py, safety.py（純粋関数）
+  modes/      base.py（Mode, RobotCommand, param, run/navigation_targets）, registry.py（@register_mode, discover）, idle/formation/follow_person/encircle/cooperative_transport
   sysid/      experiments.py（試験定義）, estimators.py（推定）, runner.py（ControlCore のオーバーライドとして実行）, recording.py
   datalog/    mcap_logger.py（標準 logging と区別するため datalog という名前）
   vision/     calibration.py, aruco_tracker.py, color_detector.py, pipeline.py, synthetic.py（合成画像）, sources.py, worker.py
@@ -69,6 +69,8 @@ tests/        helpers.py（run_closed_loop: 通信抜きの高速閉ループ）
 6. 角度は `wrap_angle()` で (-π, π]。
 7. 新機能にはテストを付ける。制御系は `tests/helpers.py::run_closed_loop` で収束を、通信は UDP 結合テスト（`tests/test_fleet.py` の `system` fixture）で確認。
 8. Windows 対応: パスは `pathlib`、ファイルは `encoding="utf-8"` 明示、UDP の WSAECONNRESET は `net/udp.py` で対処済み。
+9. 移動するモードは `navigation_targets()` で目標点を返す。障害物・人・他のロボットの回避は
+   共通ナビゲーション（`control/navigation.py`）に任せ、モードごとに書かない。
 
 ## ハマりどころ（過去に踏んだもの）
 

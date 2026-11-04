@@ -12,7 +12,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from ..common.geometry import Vec2, wrap_angle
+from ..common.geometry import Pose2D, Vec2, wrap_angle
 from ..control.path_follow import Trail, lookahead_point, pure_pursuit
 from .base import Mode, RobotCommand, param
 from .registry import register_mode
@@ -36,10 +36,15 @@ class FollowPersonMode(Mode):
         super().__init__(params)
         self.order: list[int] = []
         self.trails: dict[int | str, Trail] = {}
+        self._nav_targets: dict[int, Vec2] = {}
 
     def on_start(self, world) -> None:
         self.order = []
         self.trails = {"person": Trail()}
+        self._nav_targets = {}
+
+    def navigation_targets(self, world):
+        return dict(self._nav_targets)
 
     def _person(self, world) -> Vec2 | None:
         if not world.persons:
@@ -52,6 +57,7 @@ class FollowPersonMode(Mode):
 
     def step(self, world, dt):
         p = self.params
+        self._nav_targets.clear()
         robots = world.usable_robots()
         person = self._person(world)
         if person is None:
@@ -86,6 +92,13 @@ class FollowPersonMode(Mode):
             v = max(0.0, min(min(p.max_speed, r.params.max_speed), p.k_speed * err))
             pts = list(trail.points) + [leader_pos]
             goal = lookahead_point(pts, pos, p.lookahead)
+            # 追いつく必要があるときは、隊列位置（leader の gap 後ろ）まで
+            # 共通ナビゲーションで障害物を避けながら移動する
+            nav_dist = max(0.0, path_len - gap)
+            nav_goal = lookahead_point(pts, pos, nav_dist)
+            if nav_goal is not None and nav_dist >= 0.25:
+                self._nav_targets[rid] = nav_goal
+                self.viz.targets[rid] = Pose2D(nav_goal.x, nav_goal.y, r.pose.th)
             if goal is None or err <= 0.0:
                 vx, wz = 0.0, 0.0
                 # 停止中は前を向く

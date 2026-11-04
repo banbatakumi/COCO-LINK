@@ -10,7 +10,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from ..common.geometry import Pose2D
+from ..common.geometry import Pose2D, Vec2
+from ..control.navigation import Navigator
 from ..fleet.world_model import World
 
 
@@ -58,6 +59,7 @@ class Mode(ABC):
         self.params = params if params is not None else self.Params()
         self.viz = Visualization()
         self.status = ""
+        self.nav = Navigator()
 
     def on_start(self, world: World) -> None:  # noqa: B027  (任意実装)
         """開始時に 1 回呼ばれる."""
@@ -65,6 +67,25 @@ class Mode(ABC):
     @abstractmethod
     def step(self, world: World, dt: float) -> dict[int, RobotCommand]:
         """制御周期ごとに呼ばれる. 返さなかったロボットには何も送られない（=ウォッチドッグで停止）."""
+
+    def navigation_targets(self, world: World) -> dict[int, Vec2]:
+        """経路計画で向かうロボットごとの目標点（任意実装）.
+
+        返したロボットは、`step()` の速度指令の代わりに「障害物・人・物資・他のロボットを
+        避ける経路」を計画して追従する。目標が近いときや経路が見つからないときは
+        `step()` の指令に任せるので、最終姿勢合わせや物資押しはモード側で実装できる。
+        """
+        return {}
+
+    def run(self, world: World, dt: float) -> dict[int, RobotCommand]:
+        """制御周期の入口. `step()` の結果に共通の経路計画ナビゲーションを適用する."""
+        cmds = self.step(world, dt)
+        cmds = self.nav.apply(world, cmds, self.navigation_targets(world))
+        for key in [k for k in self.viz.paths if k.startswith("計画経路")]:
+            del self.viz.paths[key]
+        for rid, path in self.nav.paths().items():
+            self.viz.paths[f"計画経路 #{rid}"] = [(p.x, p.y) for p in path]
+        return cmds
 
     def on_stop(self, world: World) -> dict[int, RobotCommand]:
         """停止時に 1 回呼ばれる. 既定では全ロボットを停止."""

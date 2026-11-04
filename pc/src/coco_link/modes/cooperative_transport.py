@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from ..common.geometry import Pose2D, Vec2
 from ..control.formation import assign_slots
+from ..control.planning import PathTracker, plan_path
 from ..control.pose_tracking import GoToPoseGains, go_to_pose, kanayama_tracking, saturate
 from ..control.transport import (
     CargoObject,
@@ -33,6 +34,9 @@ from .registry import register_mode
 
 APPROACH_TIMEOUT_S = 12.0     # 把持隊形に揃わなくても、この時間で押し始める
 LOST_TIMEOUT_S = 0.5          # 物資を見失ってから停止するまで
+ROUTE_REPLAN_S = 1.0          # 物資の搬送経路を計画し直す周期 [s]
+ROUTE_LOOKAHEAD = 0.35        # 物資の経路上で見る先読み距離 [m]
+CARGO_CLEARANCE = 0.06        # 物資と障害物の安全余白 [m]
 
 
 @register_mode
@@ -70,6 +74,11 @@ class CooperativeTransportMode(Mode):
         self._phase_t = 0.0
         self._now = 0.0
         self._done_announced = False
+        self._nav_targets: dict[int, Vec2] = {}
+        self._cargo_path: list[Vec2] = []
+        self._cargo_tracker: PathTracker | None = None
+        self._cargo_goal: Vec2 | None = None
+        self._cargo_plan_t = -math.inf
 
     # ------------------------------------------------------------ ライフサイクル
     def on_start(self, world) -> None:
@@ -84,6 +93,11 @@ class CooperativeTransportMode(Mode):
         self._phase_t = world.t
         self._now = world.t
         self._done_announced = False
+        self._nav_targets = {}
+        self._cargo_path = []
+        self._cargo_tracker = None
+        self._cargo_goal = None
+        self._cargo_plan_t = -math.inf
         if self.params.auto_select:
             cargo = self._initial_cargo(world)
             if cargo is not None:
@@ -98,12 +112,16 @@ class CooperativeTransportMode(Mode):
         self._phase = "select"
         return super().on_stop(world)
 
+    def navigation_targets(self, world):
+        return dict(self._nav_targets)
+
     def update_params(self, params) -> None:
         goal_changed = (params.goal_x, params.goal_y) != (self.params.goal_x, self.params.goal_y)
         super().update_params(params)
         if goal_changed:
             self._phase = "push" if self._phase == "done" else self._phase
             self._done_announced = False
+            self._cargo_plan_t = -math.inf
 
     def on_field_click(self, x: float, y: float) -> None:
         if self.cargo is None:
@@ -117,6 +135,7 @@ class CooperativeTransportMode(Mode):
         self.params.goal_x, self.params.goal_y = x, y
         self._phase = "push" if self._phase == "done" else self._phase
         self._done_announced = False
+        self._cargo_plan_t = -math.inf
         self.status = f"目標地点を ({x:.2f}, {y:.2f}) に設定しました"
 
     # ------------------------------------------------------------ 内部
@@ -135,6 +154,10 @@ class CooperativeTransportMode(Mode):
         self._last_seen = self._now
         self._lost = False
         self._done_announced = False
+        self._cargo_path = []
+        self._cargo_tracker = None
+        self._cargo_goal = None
+        self._cargo_plan_t = -math.inf
         goal = Vec2(self.params.goal_x, self.params.goal_y)
         self._heading = heading_to(cargo, goal, 0.0, self.params.goal_tol)
 
@@ -144,15 +167,16 @@ class CooperativeTransportMode(Mode):
         cargo = self.cargo
         assert cargo is not None
         goal = Vec2(p.goal_x, p.goal_y)
+        dist = (goal - cargo.pos).norm()
+        # 直線ではなく、障害物を避ける搬送経路の先読み点へ押し出す
+        carrot = self._route_carrot(goal)
         if self._phase == "done":
             center = Pose2D(cargo.x, cargo.y, self._heading)
-            dist = (goal - cargo.pos).norm()
         elif self._phase == "push":
-            center, dist = push_pose(cargo, goal, p.lead, self._heading, p.goal_tol)
+            center, _ = push_pose(cargo, carrot, p.lead, self._heading, p.goal_tol)
             self._heading = center.th
         else:
-            dist = (goal - cargo.pos).norm()
-            self._heading = heading_to(cargo, goal, self._heading, p.goal_tol)
+            self._heading = heading_to(cargo, carrot, self._heading, p.goal_tol)
             center = Pose2D(cargo.x, cargo.y, self._heading)
         n = len(self._team)
         body_r = 0.06
@@ -164,6 +188,45 @@ class CooperativeTransportMode(Mode):
         self._dist = dist
         self._slots = grasp_slots(center, n, radius, math.radians(p.spread_deg)) if n else []
 
+    def _update_cargo_route(self, world, robots, team, goal: Vec2) -> None:
+        """物資を押す経路を、障害物・人・他のロボットを避けて計画する."""
+        cargo = self.cargo
+        assert cargo is not None
+        moved = self._cargo_goal is None or (goal - self._cargo_goal).norm() > 0.10
+        if not moved and self._now - self._cargo_plan_t < ROUTE_REPLAN_S:
+            return
+        self._cargo_goal = goal
+        self._cargo_plan_t = self._now
+
+        obstacles: list[tuple[Vec2, float]] = []
+        for o in world.obstacles + world.persons + world.cargo:
+            if math.hypot(o.x - cargo.x, o.y - cargo.y) < 1e-6 and abs(o.r - cargo.r) < 1e-6:
+                continue                      # 押している物資自身は除く
+            obstacles.append((Vec2(o.x, o.y), o.r))
+        for rid, r in robots.items():
+            if rid not in team:               # 把持しているロボットは物資と一緒に動く
+                obstacles.append((r.pose.pos, r.params.body_radius))
+
+        path = plan_path(cargo.pos, goal, obstacles, robot_radius=cargo.r,
+                         clearance=CARGO_CLEARANCE, field_wh=(world.field_w, world.field_h))
+        self._cargo_path = path or []
+        if self._cargo_path:
+            self._cargo_tracker = PathTracker(ROUTE_LOOKAHEAD)
+            self._cargo_tracker.set_path(self._cargo_path, cargo.pos)
+        else:
+            self._cargo_tracker = None
+
+    def _route_carrot(self, goal: Vec2) -> Vec2:
+        """搬送経路上で物資から ROUTE_LOOKAHEAD だけ先の点（無ければ最終目標）."""
+        cargo = self.cargo
+        if cargo is None or not self._cargo_path or self._cargo_tracker is None:
+            return goal
+        self._cargo_tracker.update(cargo.pos)
+        carrot = self._cargo_tracker.target(cargo.pos)
+        if carrot is None or (carrot - cargo.pos).norm() < 0.05:
+            return goal
+        return carrot
+
     # ------------------------------------------------------------ 制御周期
     def step(self, world, dt):
         p = self.params
@@ -173,6 +236,7 @@ class CooperativeTransportMode(Mode):
         self.viz.targets.clear()
         self.viz.paths.clear()
         self.viz.points = []
+        self._nav_targets.clear()
 
         if self.cargo is not None and p.track:
             cargo = track_cargo(self._candidates, self.cargo.pos)
@@ -208,6 +272,7 @@ class CooperativeTransportMode(Mode):
             self.assignment = {}
             self._done_announced = False
         self._body_radius = {rid: robots[rid].params.body_radius for rid in team}
+        self._update_cargo_route(world, robots, team, goal)
         self._retarget()
         slots = self._slots
         if not self.assignment:
@@ -226,10 +291,12 @@ class CooperativeTransportMode(Mode):
                 v, w, ok = go_to_pose(r.pose, target, v_max, 3.0, gains)
                 arrived += ok
                 cmds[rid] = RobotCommand(vx=v, wz=w, safety=False)
+                self._nav_targets[rid] = target.pos
             if arrived == len(team) or (self._now - self._phase_t > APPROACH_TIMEOUT_S
                                         and arrived >= max(1, len(team) - 1)):
                 self._phase = "push"
                 self._phase_t = self._now
+                self._nav_targets.clear()      # 押し出し中はモード固有の制御に任せる
                 for cmd in cmds.values():
                     cmd.buzzer = "ok"
             self.status = f"把持隊形へ移動: {arrived}/{len(team)} 台"
@@ -268,7 +335,9 @@ class CooperativeTransportMode(Mode):
         for rid in team:
             self.viz.targets[rid] = slots[self.assignment[rid]]
         self.viz.points = [(self.cargo.x, self.cargo.y, "物資"), (goal.x, goal.y, "目標")]
-        self.viz.paths["搬送経路"] = [(self.cargo.x, self.cargo.y), (goal.x, goal.y)]
+        self.viz.paths["搬送経路"] = ([(p.x, p.y) for p in self._cargo_path]
+                                       if self._cargo_path
+                                       else [(self.cargo.x, self.cargo.y), (goal.x, goal.y)])
         if self._slots:
             arc = [(self._center.x + self._radius * math.cos(math.pi + a),
                     self._center.y + self._radius * math.sin(math.pi + a))

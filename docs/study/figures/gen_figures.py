@@ -244,6 +244,58 @@ def follow() -> None:
     save(fig, "follow")
 
 
+def path_planning() -> None:
+    """全モード共通の経路計画: フォーメーション移動中に障害物・人を避ける軌跡."""
+    from coco_link.modes.formation import FormationMode
+    from tests.helpers import run_closed_loop
+
+    e = SimEngine(SimConfig(seed=21, param_spread=0.05))
+    e.add_robot(1, Pose2D(0.35, 0.55, 0.0))
+    e.add_robot(2, Pose2D(0.35, 1.00, 0.0))
+    e.add_robot(3, Pose2D(0.35, 1.45, 0.0))
+    e.add_body("obstacle", 1.15, 0.95, 0.18)
+    e.add_body("obstacle", 1.75, 0.40, 0.15)
+    e.add_body("person", 1.95, 1.50, 0.15)
+
+    mode = FormationMode(FormationMode.Params(
+        shape="circle", spacing=0.35, center_x=2.30, center_y=1.00))
+    paths: dict[int, list[tuple[float, float]]] = {rid: [] for rid in e.robots}
+    plans: dict[int, list[tuple[float, float]]] = {}
+
+    def record(engine, t):
+        if not plans and mode.nav.paths():
+            plans.update({rid: [(q.x, q.y) for q in path]
+                          for rid, path in mode.nav.paths().items()})
+        if int(t * PHYSICS_HZ) % 10 == 0:
+            for rid, r in engine.robots.items():
+                paths[rid].append((r.pose.x, r.pose.y))
+
+    run_closed_loop(e, mode, 35.0, on_step=record)
+
+    fig, ax = plt.subplots(figsize=(7.5, 5))
+    for body in e.bodies:
+        color = {"obstacle": C[1], "person": C[2], "cargo": C[0]}[body.kind]
+        ax.add_patch(plt.Circle((body.x, body.y), body.r, fc=color, alpha=0.25, ec=color))
+    ax.plot(mode.params.center_x, mode.params.center_y, "*", color="k", ms=16,
+            label="隊形の中心（クリックした目標）")
+    for i, (rid, pts) in enumerate(sorted(paths.items())):
+        xs, ys = zip(*pts, strict=True)
+        ax.plot(xs, ys, color=C[i], lw=2, label=f"ロボット #{rid} の軌跡")
+        if rid in plans:
+            px, py = zip(*plans[rid], strict=True)
+            ax.plot(px, py, color=C[i], lw=1.2, ls="--", alpha=0.8, label=f"#{rid} の計画経路")
+        ax.plot(xs[-1], ys[-1], "o", color=C[i], ms=9, mec="k")
+    ax.set_xlim(0, 3)
+    ax.set_ylim(0, 2)
+    ax.set_aspect("equal")
+    ax.set_xlabel("x [m]")
+    ax.set_ylabel("y [m]")
+    ax.set_title("全モード共通の経路計画: フォーメーション移動中も障害物（赤）・人（緑）を回避",
+                 fontsize=10)
+    ax.legend(loc="upper left", fontsize=8)
+    save(fig, "path_planning")
+
+
 def diff_drive() -> None:
     """差動2輪ロボットの記号の説明図（上から見た図, ロボットは上向き）."""
     fig, ax = plt.subplots(figsize=(6, 4.6))
@@ -299,8 +351,8 @@ def parallax() -> None:
 
 
 FIGURES = {"first_order": first_order, "deadzone": deadzone_fig, "wheel_control": wheel_control,
-           "sysid": sysid, "formation": formation, "follow": follow, "diff_drive": diff_drive,
-           "parallax": parallax}
+           "sysid": sysid, "formation": formation, "follow": follow, "path_planning": path_planning,
+           "diff_drive": diff_drive, "parallax": parallax}
 
 
 if __name__ == "__main__":

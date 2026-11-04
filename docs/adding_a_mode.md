@@ -55,11 +55,17 @@ class SpinMode(Mode):
 |---|---|
 | `on_start(world)` | 開始時 |
 | `step(world, dt)` | 制御周期（既定 20 Hz）ごと |
+| `navigation_targets(world)` | 経路計画で向かうロボットごとの目標点（任意） |
+| `run(world, dt)` | 制御周期の入口。`step()` に共通ナビゲーションを足す（通常は実装しない） |
 | `on_stop(world)` | 停止時（既定: 全台停止） |
 | `on_field_click(x, y)` | フィールドビューをクリックしたとき |
 | `update_params(params)` | 実行中にパラメータが変更されたとき |
 
 `self.viz`（`Visualization`）に目標姿勢・経路・点を入れるとフィールドビューに描画される。
+
+`navigation_targets()` を実装すると、`Mode.run()` が `step()` の速度指令を
+共通ナビゲーション（`control/navigation.py`）の経路追従指令に置き換える。
+障害物・人・物資・他のロボットの回避をモードごとに書く必要はない。
 
 ## 5. 作法
 
@@ -67,7 +73,7 @@ class SpinMode(Mode):
 - 制御則は `control/` に関数として切り出し、モードは「組み合わせ」に徹する（テストしやすい）。
 - テストは `pc/tests/helpers.py` の `run_closed_loop(engine, mode, seconds)` で、通信抜きのシミュレーション閉ループを高速に回して収束を確認する（`pc/tests/test_modes.py` 参照）。
 
-## 6. 今後追加したいモードの設計指針
+## 6. 実装済みモードと今後の設計指針
 
 ### 協調物資運搬（Cooperative Transport, 実装済み）
 - 実装: `modes/cooperative_transport.py` / `control/transport.py`、アルゴリズムは `docs/control.md` §7
@@ -76,10 +82,16 @@ class SpinMode(Mode):
 - 押している間は `safety=False`（前方超音波が物資を検知して止まってしまうため）
 - 評価: 物資の到達誤差・所要時間・隊形誤差（MCAP ログから算出）
 
-### 経路計画走行（Path Planning）
-- `world.obstacles` を占有格子地図にし、A* または RRT* で経路を計画（`control/planning.py` を新設）
-- 経路を時間パラメータ付き軌道にして `kanayama_tracking` で追従
-- 複数台の場合は優先度付き計画（先に計画したロボットの軌道を時空間障害物として扱う）
+### 共通ナビゲーション（Path Planning, 実装済み・全モード）
+- 実装: `control/navigation.py` / `control/planning.py`、アルゴリズムは `docs/control.md` §8
+- 移動するモードは `navigation_targets()` で「自分の目標点」を返すだけでよい
+  - フォーメーション・包囲: 自分のスロット、人追従: 隊列位置、協調物資運搬: 把持スロット
+- `Mode.run()` が `world.obstacles` / `world.persons` / `world.cargo` / 他のロボットを
+  占有格子地図に入れ、A\* で経路を計画し、`path_follow.pure_pursuit` で追従する
+- 見通しのよい直線で平滑化し、人やロボットが動くので一定周期で再計画する。
+  その間は `safety.avoid_circles` で反応的に回避する
+- 目標まで 12 cm を切ったら、最後の姿勢合わせ・停止・物資押しはモードの `step()` に任せる
+- 評価: 到達時間・経路長・障害物との最小距離（MCAP ログから算出）
 
 ### パフォーマンス（ダンス）
 - 時刻 → 隊形中心・形状・LED 色のタイムラインを YAML で定義し、音楽に合わせて再生する

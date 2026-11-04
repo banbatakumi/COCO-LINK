@@ -95,11 +95,11 @@ pytest
 | [docs/architecture.md](docs/architecture.md) | 全体構成・スレッド・データフロー |
 | [docs/protocol.md](docs/protocol.md) | UDP/JSON 通信プロトコル（全プロセス共通の契約） |
 | [docs/firmware_spec.md](docs/firmware_spec.md) | **ESP32 ファームウェア仕様書** |
-| [docs/control.md](docs/control.md) | 制御則（姿勢制御・フォーメーション・隊列追従・安全） |
+| [docs/control.md](docs/control.md) | 制御則（姿勢制御・フォーメーション・隊列追従・経路計画・安全） |
 | [docs/system_identification.md](docs/system_identification.md) | システム同定の理論・実験設計・手順 |
 | [docs/vision.md](docs/vision.md) | マーカー・キャリブレーション・色認識 |
 | [docs/data_logging.md](docs/data_logging.md) | MCAP ログの記録と解析 |
-| [docs/adding_a_mode.md](docs/adding_a_mode.md) | 新しいモードの追加方法（協調運搬・経路計画の設計指針つき） |
+| [docs/adding_a_mode.md](docs/adding_a_mode.md) | 新しいモードの追加方法（協調運搬・共通ナビゲーションの設計指針つき） |
 | [docs/git_workflow.md](docs/git_workflow.md) | ブランチ・コミット規約 |
 | [CLAUDE.md](CLAUDE.md), [pc/CLAUDE.md](pc/CLAUDE.md), [firmware/CLAUDE.md](firmware/CLAUDE.md) | Claude Code で開発するためのガイド（全体 / PC / ファーム） |
 
@@ -111,6 +111,7 @@ pytest
 | システム同定 | ARX と非線形最小二乗、静止区間比較による時刻同期不要の設計、サンプリング設計の落とし穴 | `pc/src/coco_link/sysid/`, docs |
 | 制御設計 | IMC 法による PI、モデル逆系フィードフォワード、センサ遅れに合わせた目標値フィルタ（2 自由度制御） | `pc/src/coco_link/robot/firmware_model.py`, firmware_spec §5.3 |
 | 非ホロノミック制御 | 極座標フィードバック、Kanayama 追従、Pure Pursuit | `pc/src/coco_link/control/` |
+| 経路計画 | 全モード共通ナビゲーション、占有格子地図、A\*、見通しによる平滑化、動く物体の再計画 | `pc/src/coco_link/control/navigation.py`, `planning.py` |
 | 組合せ最適化 | ハンガリアン法による隊形スロット割当（経路が交差しない） | `pc/src/coco_link/control/formation.py` |
 | 状態推定 | ビジョン遅延のオドメトリ外挿補償、欠測時の推測航法 | `pc/src/coco_link/fleet/world_model.py` |
 | コンピュータビジョン | ホモグラフィ、視差補正、HSV 色空間、床面積での足切り | `pc/src/coco_link/vision/` |
@@ -122,4 +123,5 @@ pytest
 - [x] 操作GUI / シミュレータ / ビジョンの初期版、フォーメーション・隊列追従、システム同定、MCAP
 - [ ] ESP32 ファームウェア実装（`firmware/`、仕様は docs/firmware_spec.md）
 - [ ] 実機での同定・パラメータ調整
-- [ ] 協調物資運搬モード、経路計画走行モード、音楽に合わせたパフォーマンスモード
+- [x] 協調物資運搬モード、全モード共通の経路計画（障害物・人・仲間を避ける A\* ナビゲーション）
+- [ ] 音楽に合わせたパフォーマンスモード

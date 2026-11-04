@@ -47,7 +47,7 @@ def run_closed_loop(engine: SimEngine, mode: Mode, seconds: float, control_hz: f
     n = round(seconds * control_hz)
     for _ in range(n):
         world = world_from_engine(engine)
-        apply_commands(engine, world, mode.step(world, 1.0 / control_hz))
+        apply_commands(engine, world, mode.run(world, 1.0 / control_hz))
         for _ in range(steps_per_ctrl):
             engine.step(1.0 / PHYSICS_HZ)
             if on_step:

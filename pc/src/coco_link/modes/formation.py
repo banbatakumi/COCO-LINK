@@ -12,7 +12,7 @@ import colorsys
 import math
 from dataclasses import dataclass
 
-from ..common.geometry import Pose2D, wrap_angle
+from ..common.geometry import Pose2D, Vec2, wrap_angle
 from ..control.formation import SHAPES, assign_slots, slot_poses
 from ..control.pose_tracking import GoToPoseGains, go_to_pose
 from ..control.safety import avoid_robots
@@ -42,6 +42,7 @@ class FormationMode(Mode):
         self._ids: tuple[int, ...] = ()
         self._heading = 0.0
         self._arrived_all = False
+        self._nav_targets: dict[int, Vec2] = {}
 
     def on_start(self, world) -> None:
         self._heading = math.radians(self.params.heading_deg)
@@ -59,11 +60,15 @@ class FormationMode(Mode):
     def on_field_click(self, x: float, y: float) -> None:
         self.params.center_x, self.params.center_y = x, y
 
+    def navigation_targets(self, world):
+        return dict(self._nav_targets)
+
     def center(self) -> Pose2D:
         return Pose2D(self.params.center_x, self.params.center_y, self._heading)
 
     def step(self, world, dt):
         p = self.params
+        self._nav_targets.clear()
         robots = world.usable_robots()
         if not robots:
             self.status = "制御可能なロボットがいません（接続・ビジョン認識を確認）"
@@ -83,6 +88,9 @@ class FormationMode(Mode):
         for rid, r in robots.items():
             target = slots[self.assignment[rid]]
             self.viz.targets[rid] = target
+            # 隊形が完成して回転している間は、目標が動き続けるので直接追従する
+            if not (self._arrived_all and p.rotate_dps):
+                self._nav_targets[rid] = target.pos
             v_max = min(p.max_speed, r.params.max_speed)
             v, w, ok = go_to_pose(r.pose, target, v_max, 3.0, gains)
             if self._arrived_all and p.rotate_dps:

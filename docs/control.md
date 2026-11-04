@@ -65,7 +65,7 @@ v = v_r\cos e_\theta + k_x e_x,\quad
 \omega = \omega_r + v_r(k_y e_y + k_\theta \sin e_\theta)
 $$
 
-Lyapunov 関数で大域的安定性が示される（Kanayama et al., 1990）。将来の「経路計画して走行」モードで使う。
+Lyapunov 関数で大域的安定性が示される（Kanayama et al., 1990）。協調物資運搬の押し出し（§7）で使う。
 
 ## 3. フォーメーション（`modes/formation.py`, `control/formation.py`）
 
@@ -97,6 +97,8 @@ $$
 
 各ロボットは自分のスロットへ 2.1 の制御で向かいつつ、前方 ±60° 以内・距離 25 cm 以内の他ロボットに対し、
 距離に比例して減速し、相手と反対側へ旋回する（`control/safety.py::avoid_robots`、簡易ポテンシャル法）。
+経路計画ナビゲーション（§8）は、同じ考え方を人・障害物・物資も含む円に広げた
+`control/safety.py::avoid_circles` を、再計画の合間の反応的な回避に使う。
 
 ## 4. 人追従・隊列（`modes/follow_person.py`, `control/path_follow.py`）
 
@@ -224,7 +226,72 @@ $$
 - 物資を見失ったら 0.5 s は最後の位置で継続し、それ以上で停止する。
 - 評価は物資中心と目標地点の距離（到達誤差）で行う。
 
-## 8. 姿勢推定（`fleet/world_model.py`）
+## 8. 全モード共通の経路計画（`control/navigation.py`, `control/planning.py`）
+
+フォーメーション・人追従・包囲・協調物資運搬など、ロボットが移動するすべてのモードは
+`Mode.run()` を通り、共通の経路計画ナビゲーションで障害物（赤）・人（緑）・物資（青）・
+他のロボットを避ける。§2.1 の姿勢制御は「目標まで直線で見える」前提なので、間に障害物があると引っかかる。
+モードは `Mode.navigation_targets()` でロボットごとの目標点を返し、ナビゲーションが
+占有格子地図と A* で大域的な経路を作り、Pure Pursuit で追従する。
+
+### 8.1 占有格子地図
+
+フィールドを解像度 $\Delta = 5$ cm の格子に分け、ロボットの中心を置けるセルを「空き」とする。
+物体 $i$（中心 $p_i$、半径 $r_i$）のまわり
+
+$$
+\lVert p - p_i \rVert < r_i + r_{body} + m
+$$
+
+のセルを占有にする（$r_{body}$: 機体半径、$m$: 安全余白、既定 8 cm）。
+壁からも $r_{body}+m$ 以内のセルを占有にする。人・物資も同じ円で扱い、
+他のロボットは現在位置に加えて、速度 $(v,\omega)$ から $\tau$ 秒先の位置も占有にする
+（一緒に動いているロボットとの衝突を避けるため）。
+
+### 8.2 A*
+
+8 近傍の A*。移動コストは直進 1、斜め $\sqrt{2}$。ヒューリスティックは octile 距離
+
+$$
+h = (|dx|+|dy|) + (\sqrt{2}-2)\min(|dx|,|dy|)
+$$
+
+斜め移動は、両側の直交セルが空きのときだけ許可する（障害物の角をすり抜けない）。
+計算量は $O(N\log N)$（$N$: 格子数）。始点・終点が占有セルなら、最も近い空きセルに置き換える。
+
+### 8.3 平滑化と追従
+
+A* の点列は格子に沿ってカクカクしているので、見通しのよい最も遠い点まで直線で結び直す
+（greedy shortcut）。線分が占有セルを通らないかは半セル間隔でサンプリングして判定する。
+追従は §4.3 の Pure Pursuit を使い、モードが返した速度指令を上限として走る。
+
+人やロボットは動くので既定 0.5 秒ごとに再計画し、その間は §5 の `avoid_circles` で反応的に避ける。
+他のロボットは現在位置に加えて、速度 $(v,\omega)$ から 0.5 秒先の位置も占有にする。
+
+### 8.4 モードとの分担
+
+- `step()`: モード固有の制御（目標姿勢へのフィードバック、隊形、押し出しなど）で速度指令を作る。
+- `navigation_targets()`: 経路計画で向かう目標点を返す。返さないロボットにはナビゲーションは何もしない。
+- `Mode.run()`: `step()` の結果のうち、目標点までの距離が `handover_distance`（既定 12 cm）より
+  遠いロボットだけを経路追従指令に置き換える。目標が近いとき・停止中・経路が見つからないときは
+  モードの指令に任せるので、最後の姿勢合わせや物資押しを壊さない。
+
+各モードが返す目標点は次のとおり。
+
+| モード | ナビゲーションの目標点 |
+|---|---|
+| フォーメーション | 自分の隊形スロット |
+| 包囲 | 対象のまわりの自分のスロット |
+| 人追従（隊列） | 軌跡上で「leader の `gap` 後ろ」になる点 |
+| 協調物資運搬 | 把持隊形へ向かう間はスロット。押し出し中は物資の搬送経路（下記）の先読み点 |
+
+協調物資運搬の押し出し中は、物資を押す経路そのものを占有格子と A* で計画する
+（`modes/cooperative_transport.py`）。障害物・人・他のロボットを物資の半径で膨らませ、
+経路上の先読み点へ向かって押す。これにより、物資を障害物にぶつけずに目標まで運べる。
+同じ 1 点を複数台が目指す場合も、モード側がスロットを分散しているので最後に押し合わない
+（§3.2 のハンガリアン法）。
+
+## 9. 姿勢推定（`fleet/world_model.py`）
 
 ビジョンは約 50–100 ms 遅れて届く。遅延 $\tau$ の間にロボットは $v\tau$ 進んでいるので、
 エンコーダから求めた $(v,\omega)$ で観測時刻から現在まで円弧積分して補償する。
@@ -232,10 +299,11 @@ $$
 
 発展課題: カルマンフィルタ（EKF）でビジョン・エンコーダ・ジャイロを融合すると、ノイズと遅延に一層強くなる。
 
-## 9. 参考文献
+## 10. 参考文献
 
 1. R. Siegwart, I. Nourbakhsh, D. Scaramuzza, *Introduction to Autonomous Mobile Robots*, 2nd ed., MIT Press, 2011.
 2. Y. Kanayama et al., "A stable tracking control method for an autonomous mobile robot," ICRA, 1990.
 3. R. C. Coulter, "Implementation of the Pure Pursuit Path Tracking Algorithm," CMU-RI-TR-92-01, 1992.
 4. H. W. Kuhn, "The Hungarian method for the assignment problem," 1955.
 5. M. A. Lewis, K.-H. Tan, "High precision formation control of mobile robots using virtual structures," 1997.
+6. P. E. Hart, N. J. Nilsson, B. Raphael, "A Formal Basis for the Heuristic Determination of Minimum Cost Paths," *IEEE Trans. Systems Science and Cybernetics*, 1968.
