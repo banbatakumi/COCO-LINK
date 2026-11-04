@@ -52,9 +52,11 @@ class EncircleMode(Mode):
         self._lost = False
         self._just_selected = False
         self._nav_targets: dict[int, Vec2] = {}
+        self._nav_speeds: dict[int, float] = {}
 
     def on_start(self, world) -> None:
         self.assignment = {}
+        self.nav.reset()
         self._ids = ()
         self.target_kind = None
         self.target_pos = None
@@ -80,6 +82,9 @@ class EncircleMode(Mode):
     def navigation_targets(self, world):
         return dict(self._nav_targets)
 
+    def navigation_speeds(self, world):
+        return dict(self._nav_speeds)
+
     def on_stop(self, world) -> dict[int, RobotCommand]:
         self.assignment = {}
         self._ids = ()
@@ -88,6 +93,7 @@ class EncircleMode(Mode):
     def step(self, world, dt):
         p = self.params
         self._nav_targets.clear()
+        self._nav_speeds.clear()
         self._candidates = collect_targets(world)
 
         if self.target_kind is None or self.target_pos is None:
@@ -126,8 +132,9 @@ class EncircleMode(Mode):
         for rid, r in robots.items():
             target = slots[self.assignment[rid]]
             self.viz.targets[rid] = target
-            self._nav_targets[rid] = target.pos
             v_max = min(p.max_speed, r.params.max_speed)
+            self._nav_targets[rid] = target.pos
+            self._nav_speeds[rid] = v_max
             v, w, ok = go_to_pose(r.pose, target, v_max, 3.0, gains)
             others = [o.pose.pos for oid, o in robots.items() if oid != rid]
             v, w = avoid_robots(r.pose, v, w, others, r.params.body_radius)

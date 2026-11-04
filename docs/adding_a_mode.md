@@ -56,6 +56,7 @@ class SpinMode(Mode):
 | `on_start(world)` | 開始時 |
 | `step(world, dt)` | 制御周期（既定 20 Hz）ごと |
 | `navigation_targets(world)` | 経路計画で向かうロボットごとの目標点（任意） |
+| `navigation_speeds(world)` | 経路追従中の巡航速度 [m/s]（任意。省略時 0.20 m/s） |
 | `run(world, dt)` | 制御周期の入口。`step()` に共通ナビゲーションを足す（通常は実装しない） |
 | `on_stop(world)` | 停止時（既定: 全台停止） |
 | `on_field_click(x, y)` | フィールドビューをクリックしたとき |
@@ -66,6 +67,11 @@ class SpinMode(Mode):
 `navigation_targets()` を実装すると、`Mode.run()` が `step()` の速度指令を
 共通ナビゲーション（`control/navigation.py`）の経路追従指令に置き換える。
 障害物・人・物資・他のロボットの回避をモードごとに書く必要はない。
+
+経路追従の速度は `navigation_speeds()` でロボットごとに返す。省略すると 0.20 m/s。
+`step()` の瞬間的な `vx` は使わない（姿勢制御が特異姿勢に近いと 0 に近くなり、
+その速度のまま経路を追うと目標へ着かないため）。モード固有の速度上限や
+隊列誤差に応じた減速を反映したいときに実装する。
 
 ## 5. 作法
 
@@ -84,7 +90,8 @@ class SpinMode(Mode):
 
 ### 共通ナビゲーション（Path Planning, 実装済み・全モード）
 - 実装: `control/navigation.py` / `control/planning.py`、アルゴリズムは `docs/control.md` §8
-- 移動するモードは `navigation_targets()` で「自分の目標点」を返すだけでよい
+- 移動するモードは `navigation_targets()` で「自分の目標点」、`navigation_speeds()` で
+  「経路追従中の巡航速度」を返すだけでよい（速度は省略可、既定 0.20 m/s）
   - フォーメーション・包囲: 自分のスロット、人追従: 隊列位置、協調物資運搬: 把持スロット
 - `Mode.run()` が `world.obstacles` / `world.persons` / `world.cargo` / 他のロボットを
   占有格子地図に入れ、A\* で経路を計画し、`path_follow.pure_pursuit` で追従する

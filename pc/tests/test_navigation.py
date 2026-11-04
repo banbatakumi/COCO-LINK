@@ -44,6 +44,52 @@ def test_navigator_ignores_robots_without_targets_and_near_goals():
     assert cmd.vx == 0.2 and cmd.wz == 0.1
 
 
+def test_navigator_uses_its_own_cruise_speed_when_mode_command_is_zero():
+    """姿勢制御が特異姿勢で vx≈0 になっても、経路追従は巡航速度で進む."""
+    nav = Navigator()
+    w = _world((0.4, 1.0))
+    cmd = RobotCommand(vx=0.0, wz=1.0)       # その場旋回しかしない指令
+    nav.apply(w, {1: cmd}, {1: Vec2(2.0, 1.0)}, {1: 0.20})
+    assert cmd.vx > 0.10
+
+
+def test_formation_escapes_heading_singularity():
+    """目標が真横かつ目標姿勢が逆向きでも、経路計画で回り込んで到着する."""
+    e = SimEngine(SimConfig(seed=2, param_spread=0.0))
+    e.add_robot(1, Pose2D(0.39, 0.94, -1.62))
+    e.add_body("obstacle", 1.20, 1.00, 0.22)
+    mode = FormationMode(FormationMode.Params(
+        shape="circle", spacing=0.25, center_x=2.36, center_y=0.91))
+
+    run_closed_loop(e, mode, 20.0)
+
+    assert "完成" in mode.status
+
+
+def test_formation_rotation_also_avoids_obstacles():
+    """隊形を回転している間も経路計画が効き、スロット上の障害物にぶつからない."""
+    e = SimEngine(SimConfig(seed=5, param_spread=0.0))
+    for i, y in enumerate([0.70, 1.00, 1.30], start=1):
+        e.add_robot(i, Pose2D(0.40, y, 0.0))
+    angle = math.radians(30.0)
+    obstacle = e.add_body("obstacle", 1.80 + 0.32 * math.cos(angle),
+                          1.00 + 0.32 * math.sin(angle), 0.12)
+    mode = FormationMode(FormationMode.Params(
+        shape="circle", spacing=0.32, center_x=1.80, center_y=1.00, rotate_dps=30.0))
+    min_dist = math.inf
+
+    def record(engine, _t):
+        nonlocal min_dist
+        for robot in engine.robots.values():
+            p = robot.pose
+            min_dist = min(min_dist, math.hypot(p.x - obstacle.x, p.y - obstacle.y))
+
+    run_closed_loop(e, mode, 35.0, on_step=record)
+
+    assert mode._arrived_all
+    assert min_dist > obstacle.r + e.robots[1].params.body_radius + 0.02
+
+
 def test_navigator_routes_around_an_obstacle():
     nav = Navigator()
     w = _world((0.4, 1.0))

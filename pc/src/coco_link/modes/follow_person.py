@@ -37,14 +37,20 @@ class FollowPersonMode(Mode):
         self.order: list[int] = []
         self.trails: dict[int | str, Trail] = {}
         self._nav_targets: dict[int, Vec2] = {}
+        self._nav_speeds: dict[int, float] = {}
 
     def on_start(self, world) -> None:
         self.order = []
+        self.nav.reset()
         self.trails = {"person": Trail()}
         self._nav_targets = {}
+        self._nav_speeds = {}
 
     def navigation_targets(self, world):
         return dict(self._nav_targets)
+
+    def navigation_speeds(self, world):
+        return dict(self._nav_speeds)
 
     def _person(self, world) -> Vec2 | None:
         if not world.persons:
@@ -58,6 +64,7 @@ class FollowPersonMode(Mode):
     def step(self, world, dt):
         p = self.params
         self._nav_targets.clear()
+        self._nav_speeds.clear()
         robots = world.usable_robots()
         person = self._person(world)
         if person is None:
@@ -98,6 +105,7 @@ class FollowPersonMode(Mode):
             nav_goal = lookahead_point(pts, pos, nav_dist)
             if nav_goal is not None and nav_dist >= 0.25:
                 self._nav_targets[rid] = nav_goal
+                self._nav_speeds[rid] = v
                 self.viz.targets[rid] = Pose2D(nav_goal.x, nav_goal.y, r.pose.th)
             if goal is None or err <= 0.0:
                 vx, wz = 0.0, 0.0

@@ -75,6 +75,7 @@ class CooperativeTransportMode(Mode):
         self._now = 0.0
         self._done_announced = False
         self._nav_targets: dict[int, Vec2] = {}
+        self._nav_speeds: dict[int, float] = {}
         self._cargo_path: list[Vec2] = []
         self._cargo_tracker: PathTracker | None = None
         self._cargo_goal: Vec2 | None = None
@@ -83,6 +84,7 @@ class CooperativeTransportMode(Mode):
     # ------------------------------------------------------------ ライフサイクル
     def on_start(self, world) -> None:
         self.cargo = None
+        self.nav.reset()
         self.assignment = {}
         self._team = ()
         self._phase = "select"
@@ -94,6 +96,7 @@ class CooperativeTransportMode(Mode):
         self._now = world.t
         self._done_announced = False
         self._nav_targets = {}
+        self._nav_speeds = {}
         self._cargo_path = []
         self._cargo_tracker = None
         self._cargo_goal = None
@@ -114,6 +117,9 @@ class CooperativeTransportMode(Mode):
 
     def navigation_targets(self, world):
         return dict(self._nav_targets)
+
+    def navigation_speeds(self, world):
+        return dict(self._nav_speeds)
 
     def update_params(self, params) -> None:
         goal_changed = (params.goal_x, params.goal_y) != (self.params.goal_x, self.params.goal_y)
@@ -237,6 +243,7 @@ class CooperativeTransportMode(Mode):
         self.viz.paths.clear()
         self.viz.points = []
         self._nav_targets.clear()
+        self._nav_speeds.clear()
 
         if self.cargo is not None and p.track:
             cargo = track_cargo(self._candidates, self.cargo.pos)
@@ -292,11 +299,13 @@ class CooperativeTransportMode(Mode):
                 arrived += ok
                 cmds[rid] = RobotCommand(vx=v, wz=w, safety=False)
                 self._nav_targets[rid] = target.pos
+                self._nav_speeds[rid] = v_max
             if arrived == len(team) or (self._now - self._phase_t > APPROACH_TIMEOUT_S
                                         and arrived >= max(1, len(team) - 1)):
                 self._phase = "push"
                 self._phase_t = self._now
                 self._nav_targets.clear()      # 押し出し中はモード固有の制御に任せる
+                self._nav_speeds.clear()
                 for cmd in cmds.values():
                     cmd.buzzer = "ok"
             self.status = f"把持隊形へ移動: {arrived}/{len(team)} 台"

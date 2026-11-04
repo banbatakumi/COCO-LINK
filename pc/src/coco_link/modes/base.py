@@ -77,10 +77,19 @@ class Mode(ABC):
         """
         return {}
 
+    def navigation_speeds(self, world: World) -> dict[int, float]:
+        """経路追従中の巡航速度 [m/s]（任意実装）.
+
+        省略したロボットは `Navigator` の既定速度（0.20 m/s）を使う。
+        `step()` の瞬間的な速度指令とは独立に扱う（特異姿勢で 0 になっても進めるように）。
+        """
+        return {}
+
     def run(self, world: World, dt: float) -> dict[int, RobotCommand]:
         """制御周期の入口. `step()` の結果に共通の経路計画ナビゲーションを適用する."""
         cmds = self.step(world, dt)
-        cmds = self.nav.apply(world, cmds, self.navigation_targets(world))
+        cmds = self.nav.apply(world, cmds, self.navigation_targets(world),
+                              self.navigation_speeds(world))
         for key in [k for k in self.viz.paths if k.startswith("計画経路")]:
             del self.viz.paths[key]
         for rid, path in self.nav.paths().items():

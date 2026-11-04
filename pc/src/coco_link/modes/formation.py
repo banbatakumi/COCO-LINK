@@ -43,9 +43,11 @@ class FormationMode(Mode):
         self._heading = 0.0
         self._arrived_all = False
         self._nav_targets: dict[int, Vec2] = {}
+        self._nav_speeds: dict[int, float] = {}
 
     def on_start(self, world) -> None:
         self._heading = math.radians(self.params.heading_deg)
+        self.nav.reset()
         self._ids = ()
         self._arrived_all = False
 
@@ -63,12 +65,16 @@ class FormationMode(Mode):
     def navigation_targets(self, world):
         return dict(self._nav_targets)
 
+    def navigation_speeds(self, world):
+        return dict(self._nav_speeds)
+
     def center(self) -> Pose2D:
         return Pose2D(self.params.center_x, self.params.center_y, self._heading)
 
     def step(self, world, dt):
         p = self.params
         self._nav_targets.clear()
+        self._nav_speeds.clear()
         robots = world.usable_robots()
         if not robots:
             self.status = "制御可能なロボットがいません（接続・ビジョン認識を確認）"
@@ -88,10 +94,9 @@ class FormationMode(Mode):
         for rid, r in robots.items():
             target = slots[self.assignment[rid]]
             self.viz.targets[rid] = target
-            # 隊形が完成して回転している間は、目標が動き続けるので直接追従する
-            if not (self._arrived_all and p.rotate_dps):
-                self._nav_targets[rid] = target.pos
             v_max = min(p.max_speed, r.params.max_speed)
+            self._nav_targets[rid] = target.pos
+            self._nav_speeds[rid] = v_max
             v, w, ok = go_to_pose(r.pose, target, v_max, 3.0, gains)
             if self._arrived_all and p.rotate_dps:
                 ok = r.pose.distance_to(target) < 0.05     # 回転中は位置だけで判定

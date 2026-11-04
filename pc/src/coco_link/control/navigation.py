@@ -34,6 +34,7 @@ class NavigationConfig:
     handover_distance: float = 0.12  # 目標がこの距離以内ならモードの指令に任せる [m]
     target_move_tol: float = 0.08   # 目標がこれ以上動いたら再計画 [m]
     avoid_influence: float = 0.25   # 反応的な回避を始める距離 [m]
+    default_speed: float = 0.20     # モードが速度を指定しない場合の巡航速度 [m/s]
 
 
 class Navigator:
@@ -66,13 +67,19 @@ class Navigator:
         self._planned_at.pop(rid, None)
 
     # ------------------------------------------------------------ 適用
-    def apply(self, world: World, cmds: dict, targets: dict[int, Vec2]) -> dict:
+    def apply(self, world: World, cmds: dict, targets: dict[int, Vec2],
+              speeds: dict[int, float] | None = None) -> dict:
         """cmds のうち targets に含まれるロボットを経路追従指令に置き換える.
 
         targets にないロボットの指令には触れない（停止・その場旋回・物資押しなど、
-        モード固有の制御をそのまま使う）。
+        モード固有の制御をそのまま使う）。`speeds` は経路追従中の巡航速度で、
+        省略したロボットは `default_speed` を使う。
+
+        モードの瞬間的な速度指令は使わない。姿勢制御が特異姿勢に近いときに
+        指令速度がほぼ 0 になっても、計画経路に沿って進めるようにするため。
         """
         robots = world.usable_robots()
+        speeds = speeds or {}
         self.blocked.clear()
 
         for rid, target in targets.items():
@@ -81,11 +88,12 @@ class Navigator:
             if cmd is None or r is None or cmd.wheel is not None:
                 self._forget(rid)
                 continue
-            # 停止・その場旋回はモードの判断を優先する
-            if abs(cmd.vx) < 1e-3:
+            if (target - r.pose.pos).norm() <= self.config.handover_distance:
                 self._forget(rid)
                 continue
-            if (target - r.pose.pos).norm() <= self.config.handover_distance:
+
+            speed = max(0.0, speeds.get(rid, self.config.default_speed))
+            if speed <= 1e-3:                 # モードが明示的に停止を指示
                 self._forget(rid)
                 continue
 
@@ -108,7 +116,7 @@ class Navigator:
                 self._forget(rid)
                 continue
 
-            v = min(abs(cmd.vx), r.params.max_speed)
+            v = min(speed, r.params.max_speed)
             v, w = pure_pursuit(r.pose, goal, v)
             v, w = avoid_circles(r.pose, v, w, self._avoid_circles(world, robots, rid),
                                  influence=self.config.avoid_influence)
