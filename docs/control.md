@@ -138,7 +138,48 @@ $L_d$ が小さいと追従は正確だが振動しやすく、大きいと滑�
 | PC | ロボット間回避 | `avoid_robots` |
 | PC | 優先度調停: E-STOP > 手動 > 同定 > モード | `ControlCore.tick` |
 
-## 6. 姿勢推定（`fleet/world_model.py`）
+## 6. 包囲（`modes/encircle.py`, `control/encircle.py`）
+
+クリックした人（緑）・物資（青）・障害物（赤）を、全ロボットで円形に取り囲む。
+
+### 6.1 対象の選択と追従
+
+クリック位置 $c$ に対し、候補物体 $i$（中心 $p_i$、半径 $r_i$）の表面までの距離
+
+$$
+d_i = \max\left(0,\ \lVert c-p_i\rVert-r_i\right)
+$$
+
+が最小で、$d_i \le d_{tol}$（クリック判定）のものを対象にする。中心距離ではなく表面距離で判定するので、
+大きい障害物の端をクリックしても選べる。対象の種類（人・物資・障害物）と直前位置を覚えておき、
+「対象を追従」が有効なら、同じ種類のうち直前位置に最も近いものをゲート距離内で追い続ける。
+
+### 6.2 リングとスロット
+
+対象中心 $p_t$、半径 $r_t$、機体半径 $r_b$、余白 $m$、台数 $n$ として、リング半径を
+
+$$
+R = \max\left(R_{min},\ r_t+r_b+m,\ \frac{n(2r_b+g)}{2\pi}\right)
+$$
+
+とする。第 3 項は台数が多いときにリング上で機体同士が重ならないための条件（$g$ は最小隙間）。
+スロット $i$ は位相 $\phi_0$ を用いて
+
+$$
+p_i^* = p_t + R\begin{bmatrix}\cos\phi_i\\ \sin\phi_i\end{bmatrix},\quad
+\phi_i = \phi_0 + \frac{2\pi i}{n},\quad
+\theta_i^* = \phi_i+\pi
+$$
+
+と配置する（$\theta_i^*$ は中心を向く向き）。割り当てはフォーメーションと同じハンガリアン法（§3.2）で行い、
+ロボット集合が変わったときだけ計算し直す。追従中は対象の移動に合わせてリング全体が動く。
+
+### 6.3 走行制御
+
+各ロボットは §2.1 の `go_to_pose` で自分のスロットへ向かい、§3.3 の `avoid_robots` で
+近接する他ロボットを避ける。到着判定は位置 3 cm・向き 8°（`GoToPoseGains`）。
+
+## 7. 姿勢推定（`fleet/world_model.py`）
 
 ビジョンは約 50–100 ms 遅れて届く。遅延 $\tau$ の間にロボットは $v\tau$ 進んでいるので、
 エンコーダから求めた $(v,\omega)$ で観測時刻から現在まで円弧積分して補償する。
@@ -146,7 +187,7 @@ $L_d$ が小さいと追従は正確だが振動しやすく、大きいと滑�
 
 発展課題: カルマンフィルタ（EKF）でビジョン・エンコーダ・ジャイロを融合すると、ノイズと遅延に一層強くなる。
 
-## 7. 参考文献
+## 8. 参考文献
 
 1. R. Siegwart, I. Nourbakhsh, D. Scaramuzza, *Introduction to Autonomous Mobile Robots*, 2nd ed., MIT Press, 2011.
 2. Y. Kanayama et al., "A stable tracking control method for an autonomous mobile robot," ICRA, 1990.
