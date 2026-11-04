@@ -69,9 +69,10 @@ class SpinMode(Mode):
 
 ## 6. 今後追加したいモードの設計指針
 
-### 協調物資運搬（Cooperative Transport）
-- ビジョンの `cargo`（青）を対象に、2–3 台が物資を囲む「把持隊形」をとる（物資中心の仮想構造 + `formation.assign_slots`）
-- 物資を目標地点へ押す: 隊形中心を物資位置、向きを目標方向にし、隊形全体を `kanayama_tracking` で目標へ動かす
+### 協調物資運搬（Cooperative Transport, 実装済み）
+- 実装: `modes/cooperative_transport.py` / `control/transport.py`、アルゴリズムは `docs/control.md` §7
+- ビジョンの `cargo`（青）を対象に、1–3 台が物資の後方に「把持隊形」をとる（物資中心の仮想構造 + `formation.assign_slots`）
+- 物資を目標地点へ押す: 隊形中心を物資位置から目標方向へ少し先行させ（押し込み量）、隊形全体を `kanayama_tracking` で目標へ動かす
 - 押している間は `safety=False`（前方超音波が物資を検知して止まってしまうため）
 - 評価: 物資の到達誤差・所要時間・隊形誤差（MCAP ログから算出）
 

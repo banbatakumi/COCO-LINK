@@ -179,7 +179,52 @@ $$
 各ロボットは §2.1 の `go_to_pose` で自分のスロットへ向かい、§3.3 の `avoid_robots` で
 近接する他ロボットを避ける。到着判定は位置 3 cm・向き 8°（`GoToPoseGains`）。
 
-## 7. 姿勢推定（`fleet/world_model.py`）
+## 7. 協調物資運搬（`modes/cooperative_transport.py`, `control/transport.py`）
+
+物資（青）を 1〜3 台で囲むように押し、目標地点まで運ぶ。状態機械は
+`approach`（把持隊形へ移動）→ `push`（押し出し）→ `done`（完了）である。
+
+### 7.1 把持隊形
+
+物資中心を原点、目標方向を $+x$ とする物資座標系で、物資の後方 $\pi$ を中心に半角 $\sigma$ の円弧へ $n$ 台を等間隔に置く:
+
+$$
+\delta_i = -\sigma + \frac{2\sigma}{n-1}i \quad (i=0,\ldots,n-1),\qquad
+o_i = R\begin{bmatrix}-\cos\delta_i\\-\sin\delta_i\end{bmatrix}
+$$
+
+$$
+R = \max\left(r_{cargo}+r_{body}+m,\ \frac{2r_{body}+g}{2\sin(\sigma/(n-1))}\right)
+$$
+
+第 2 項は、隣り合うスロットの弦長が機体直径以上になる条件である。$m$ は物資との余白、$g$ は機体間の隙間。
+目標姿勢は §3.1 と同じ仮想構造法で、物資姿勢 $C=(x_c,y_c,\theta_c)$ から
+
+$$
+p_i^* = \begin{bmatrix}x_c\\y_c\end{bmatrix}+R(\theta_c)\,o_i,\qquad \theta_i^*=\theta_c
+$$
+
+とする。スロット割り当ては §3.2 のハンガリアン法。搬送チームは物資に近い順に最大 `max_robots` 台を選ぶ。
+
+### 7.2 押し出し目標（仮想物資）
+
+実測の物資位置 $p_c$ から目標 $p_g$ への単位ベクトル $\hat u$ と距離 $d$ に対し、隊形中心を
+
+$$
+C = p_c + \hat u \min(\ell, d),\qquad \theta_c=\operatorname{atan2}(p_g-p_c)
+$$
+
+とする。$\ell$ は押し込み量（`lead`）。隊形中心が物資より $\ell$ だけ先行するため、ロボットは物資に少し食い込み、押す力が生まれる。$d \le$ `goal_tol` になったら完了とする。
+
+### 7.3 追従と安全
+
+- 把持隊形へは §2.1 の極座標フィードバックで移動する。
+- 押し出し中は §2.2 の Kanayama 軌道追従で、各スロットを速度 $v_r=$ `push_speed` の参照軌道として追う。
+- 押している間は `safety=False`。物資が前方超音波に映り、§5 の減速で止まってしまうため。
+- 物資を見失ったら 0.5 s は最後の位置で継続し、それ以上で停止する。
+- 評価は物資中心と目標地点の距離（到達誤差）で行う。
+
+## 8. 姿勢推定（`fleet/world_model.py`）
 
 ビジョンは約 50–100 ms 遅れて届く。遅延 $\tau$ の間にロボットは $v\tau$ 進んでいるので、
 エンコーダから求めた $(v,\omega)$ で観測時刻から現在まで円弧積分して補償する。
@@ -187,7 +232,7 @@ $$
 
 発展課題: カルマンフィルタ（EKF）でビジョン・エンコーダ・ジャイロを融合すると、ノイズと遅延に一層強くなる。
 
-## 8. 参考文献
+## 9. 参考文献
 
 1. R. Siegwart, I. Nourbakhsh, D. Scaramuzza, *Introduction to Autonomous Mobile Robots*, 2nd ed., MIT Press, 2011.
 2. Y. Kanayama et al., "A stable tracking control method for an autonomous mobile robot," ICRA, 1990.
