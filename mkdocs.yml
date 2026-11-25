@@ -89,6 +89,7 @@ nav:
       - 通信プロトコル: protocol.md
       - ファームウェア仕様書: firmware_spec.md
       - 制御則: control.md
+      - フィードバック制御則とブロック線図: feedback_control.md
       - システム同定（技術）: system_identification.md
       - ビジョン（技術）: vision.md
       - データロギング: data_logging.md
